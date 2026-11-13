@@ -7,8 +7,6 @@
 
 ## 0.1.0 - 2026-11-12
 
-_Planned initial release; not yet published._
-
 - Clarify Pi 1.5.2 as the minimum supported version rather than an exact-version requirement; allow newer hosts while distinguishing the tested baseline from unverified later versions.
 
 - Add a fixed conversation-width separator below the selected header, without crossing the wide roster or changing the full-width footer divider.
