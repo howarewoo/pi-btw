@@ -9,8 +9,8 @@
     "url": "git+https://github.com/howarewoo/pi-btw.git"
   },
   "keywords": ["pi-package"],
-  "files": ["src", "docs/images", "README.md", "CHANGELOG.md", "LICENSE"],
-  "pi": { "extensions": ["./src/index.ts"] },
+  "files": ["index.ts", "src", "docs/images", "README.md", "CHANGELOG.md", "LICENSE"],
+  "pi": { "extensions": ["./index.ts"] },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "tsx --test test/*.test.ts",

@@ -34,9 +34,9 @@ pi install .
 ```
 
 Restart Pi, or run `/reload` in an existing idle session after installing. The package
-loads only `src/index.ts`; source modules, README and its images, changelog, and license
+loads only the root `index.ts` entry point; source modules, README and its images, changelog, and license
 are included in its install contents. No build step is required. For a one-invocation trial without
-changing package settings, use `pi -e ./src/index.ts` from the checkout.
+changing package settings, use `pi -e ./index.ts` from the checkout.
 
 ### Moving from the older unscoped pi-btw extension
 

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Load the extension through a root-level entry point so npm installs appear as `@howarewoo/pi-btw` in Pi's startup list, without the `:src` suffix.
+
 ## 0.1.0 - 2026-11-12
 
 _Planned initial release; not yet published._

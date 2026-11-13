@@ -19,7 +19,7 @@ try {
   const entries = execFileSync("tar", ["-tzf", tarball], { encoding: "utf8" }).trim().split("\n");
   for (const entry of entries) {
     assert.ok(!entry.split("/").includes(".."), `Unsafe tar path: ${entry}`);
-    assert.match(entry, /^package\/(?:src\/[\w-]+\.ts|docs\/images\/[\w-]+\.svg|package\.json|README\.md|CHANGELOG\.md|LICENSE)$/, `Unexpected packed file: ${entry}`);
+    assert.match(entry, /^package\/(?:index\.ts|src\/[\w-]+\.ts|docs\/images\/[\w-]+\.svg|package\.json|README\.md|CHANGELOG\.md|LICENSE)$/, `Unexpected packed file: ${entry}`);
   }
   await writeFile(join(root, "package.json"), '{"private":true,"type":"module"}\n');
   await writeFile(join(root, "npmrc"), "");
@@ -28,7 +28,7 @@ try {
   const pkg = JSON.parse(await readFile(join(installed, "package.json"), "utf8"));
   assert.deepEqual(pkg, expected);
   assert.ok(!pkg.dependencies && !pkg.bundledDependencies && !pkg.bundleDependencies, "Pi supplies all runtime dependencies");
-  assert.deepEqual(pkg.pi.extensions, ["./src/index.ts"]);
+  assert.deepEqual(pkg.pi.extensions, ["./index.ts"]);
   // No host SDK duplicates (or other packages) may appear in the isolated consumer.
   assert.deepEqual((await readdir(join(root, "node_modules"))).sort(), [".package-lock.json", "@howarewoo"]);
   for (const file of ["README.md", "CHANGELOG.md", "LICENSE"])
@@ -53,7 +53,15 @@ try {
   assert.deepEqual(loaded.errors, []);
   assert.equal(loaded.extensions.length, 1);
   const [extension] = loaded.extensions;
-  assert.equal(extension.path, join(installed, "src/index.ts"));
+  assert.equal(extension.path, join(installed, "index.ts"));
+  // Exercise the pinned host's real startup-label renderer with npm source metadata.
+  // Import by file URL because this internal renderer is not a public SDK export.
+  const { InteractiveMode } = await import(new URL("../node_modules/@earendil-works/pi-coding-agent/dist/modes/interactive/interactive-mode.js", import.meta.url));
+  const renderer = Object.create(InteractiveMode.prototype);
+  assert.deepEqual(renderer.getCompactExtensionLabels([{
+    path: extension.path,
+    sourceInfo: { ...extension.sourceInfo, source: `npm:${pkg.name}`, baseDir: installed },
+  }]), [pkg.name], "npm startup label must not include an entry-point suffix");
   assert.deepEqual([...extension.commands.keys()], ["btw"]);
   assert.equal(extension.tools.size, 0);
   // Execute a representative command boundary without a model/provider or interactive TUI.
