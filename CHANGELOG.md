@@ -2,11 +2,12 @@
 
 ## Unreleased
 
+- Load the extension through a root-level entry point so npm installs appear as `@howarewoo/pi-btw` in Pi's startup list, without the `:src` suffix.
+- Allow pending Unreleased notes during release metadata checks while continuing to validate the current version's release notes, tag, and package metadata.
+
 ## 0.1.0 - 2026-11-12
 
 _Planned initial release; not yet published._
-
-- Load the extension through a root-level entry point so npm installs appear as `@howarewoo/pi-btw` in Pi's startup list, without the `:src` suffix.
 
 - Clarify Pi 1.5.2 as the minimum supported version rather than an exact-version requirement; allow newer hosts while distinguishing the tested baseline from unverified later versions.
 

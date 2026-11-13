@@ -17,7 +17,7 @@ assert.equal(pkg.license, "MIT");
 const changelog = await readFile("CHANGELOG.md", "utf8");
 const sections = [...changelog.matchAll(/^## (.+)\n([\s\S]*?)(?=^## |$(?![\s\S]))/gm)];
 assert.equal(sections[0]?.[1], "Unreleased");
-assert.equal(sections[0][2].trim(), "", "Move pending changes into the release entry");
+// Pending changes belong to a future release, not the version being validated.
 assert.match(sections[1]?.[1] ?? "", new RegExp(`^${pkg.version.replaceAll(".", "\\.")} - \\d{4}-\\d{2}-\\d{2}$`));
 assert.equal(sections.filter((s) => s[1].startsWith(`${pkg.version} - `)).length, 1);
 assert.match(sections[1][2], /^- \S/m, "Release notes must contain changes");

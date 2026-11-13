@@ -68,8 +68,9 @@ npm run release:check
 npm run test:package
 ```
 
-CI runs those gates on Node 22.19.0 and Node 24. Release metadata checks require an empty
-Unreleased section, matching package/lockfile versions and nonempty versioned notes.
+CI runs those gates on Node 22.19.0 and Node 24. Release metadata checks allow pending
+Unreleased notes and require matching package/lockfile versions and nonempty versioned notes.
+Unreleased changes describe future work and are not part of the version being validated.
 Package smoke checks inspect the real archive allowlist, install it offline without scripts,
 dev dependencies or automatic peers, check README links/images and no duplicated host packages,
 and load/register `/btw` through the actual pinned Pi resource loader. It also exercises the
