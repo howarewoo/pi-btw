@@ -1,9 +1,15 @@
 {
   "name": "@howarewoo/pi-btw",
-  "version": "0.1.1",
-  "description": "Independent read-only side conversations for Pi 1.5.2 or later",
+  "version": "0.1.2",
+  "description": "Pi coding agent extension for concurrent read-only /btw side conversations with saved thread history.",
   "keywords": [
-    "pi-package"
+    "btw",
+    "pi-coding-agent",
+    "pi-extension",
+    "pi-package",
+    "read-only",
+    "side-chat",
+    "side-conversation"
   ],
   "homepage": "https://github.com/howarewoo/pi-btw#readme",
   "bugs": {

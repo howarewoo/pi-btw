@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+## 0.1.2 - 2026-11-13
+
+- Clarify the scoped package identity and concurrent read-only side conversation workflow in the README and npm metadata; add a two-thread quick start and move development details below user guidance.
 - Create a GitHub release after successful npm publication, using only the matching version's changelog notes and preserving existing releases on reruns.
 
 ## 0.1.1 - 2026-11-13

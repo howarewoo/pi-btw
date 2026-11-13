@@ -1,8 +1,12 @@
-# pi-btw
+# @howarewoo/pi-btw — Pi extension for concurrent side conversations
 
-Independent, read-only side conversations for **Pi 1.5.2 or later**. Ask a question without
-interrupting the main agent or adding the side conversation to its future model context.
-Available on npm as [`@howarewoo/pi-btw`](https://www.npmjs.com/package/@howarewoo/pi-btw).
+Run several independent, read-only `/btw` conversations alongside the **Pi coding agent**.
+Switch between threads in one hub, ask follow-up questions while the main agent works,
+and restore saved thread history with the parent session. Side conversations use a
+snapshot of the main conversation and stay out of its future model context.
+
+Requires **Pi 1.5.2 or later**. Available on npm as
+[`@howarewoo/pi-btw`](https://www.npmjs.com/package/@howarewoo/pi-btw).
 
 ![Synthetic native-renderer illustration of the wide BTW hub: four independent threads with green idle, active running, warning hollow interrupted and muted hollow cancelled circles on a neutral gray panel beside a read-only conversation, read tool output, reply and follow-up draft.](docs/images/btw-hub.svg)
 
@@ -19,23 +23,7 @@ extensions themselves run with Pi's operating-system permissions.
 pi install npm:@howarewoo/pi-btw
 ```
 
-To install the initial release explicitly, use `pi install npm:@howarewoo/pi-btw@0.1.0`.
-Maintainers: see the [release guide](https://github.com/howarewoo/pi-btw/blob/main/docs/releasing.md).
-
-For local development:
-
-```sh
-git clone https://github.com/howarewoo/pi-btw.git
-cd pi-btw
-npm ci
-npm run check
-pi install .
-```
-
-Restart Pi, or run `/reload` in an existing idle session after installing. The package
-loads only the root `index.ts` entry point; source modules, README and its images, changelog, and license
-are included in its install contents. No build step is required. For a one-invocation trial without
-changing package settings, use `pi -e ./index.ts` from the checkout.
+Restart Pi, or run `/reload` in an existing idle session after installing.
 
 ### Moving from the older unscoped pi-btw extension
 
@@ -45,6 +33,30 @@ Disable/remove that old extension yourself, then install this package and reload
 leave both enabled: they register the same `/btw` command and Pi may suffix the names.
 There are no old aliases, mode commands, model overrides, or old-history migration.
 Old saved session data is not deleted or imported.
+
+## Quick start
+
+In a project containing `README.md` and `package.json`:
+
+1. Start a side question:
+
+   ```text
+   /btw Read README.md and summarize this project's purpose in three bullets.
+   ```
+
+2. Press **Esc** to close the hub, then start another question:
+
+   ```text
+   /btw Read package.json and explain the main npm scripts.
+   ```
+
+3. Use **Up / Down** to select either thread. After its request finishes, send a
+   follow-up in that thread's composer.
+
+The hub now lists two independent threads. Requests can run concurrently; closing
+the hub does not cancel them. **Every `/btw <prompt>` creates a new thread**; use the
+selected thread's composer to continue an existing conversation. Bare `/btw` reopens
+the hub without making a model request.
 
 ## Use the hub
 
@@ -148,6 +160,23 @@ Drafts and viewport positions are runtime-only and are not restored after restar
 
 No automatic compaction or retry is enabled in child sessions. Very long side threads may
 hit provider context limits and fail visibly; start a fresh `/btw <prompt>` when needed.
+
+## Development
+
+```sh
+git clone https://github.com/howarewoo/pi-btw.git
+cd pi-btw
+npm ci
+npm run check
+pi install .
+```
+
+The package loads only the root `index.ts` entry point; source modules, README and its
+images, changelog, and license are included in its install contents. No build step is
+required. For a one-invocation trial without changing package settings, use
+`pi -e ./index.ts` from the checkout.
+
+Maintainers: see the [release guide](https://github.com/howarewoo/pi-btw/blob/main/docs/releasing.md).
 
 ## Verification and limits
 
