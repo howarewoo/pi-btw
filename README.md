@@ -2,7 +2,7 @@
 
 Independent, read-only side conversations for **Pi 1.5.2 or later**. Ask a question without
 interrupting the main agent or adding the side conversation to its future model context.
-The package identity is `@howarewoo/pi-btw`; it is not published to npm.
+Available on npm as [`@howarewoo/pi-btw`](https://www.npmjs.com/package/@howarewoo/pi-btw).
 
 ![Synthetic native-renderer illustration of the wide BTW hub: four independent threads with green idle, active running, warning hollow interrupted and muted hollow cancelled circles on a neutral gray panel beside a read-only conversation, read tool output, reply and follow-up draft.](docs/images/btw-hub.svg)
 
@@ -16,14 +16,11 @@ Requires Node.js >=22.19.0, Pi >=1.5.2 and a working model/provider login. Revie
 extensions themselves run with Pi's operating-system permissions.
 
 ```sh
-pi install git:github.com/howarewoo/pi-btw
+pi install npm:@howarewoo/pi-btw
 ```
 
-**Future npm installation — unavailable now:** after a separately authorized first
-publication of `@howarewoo/pi-btw@0.1.0`, the planned command is
-`pi install npm:@howarewoo/pi-btw@0.1.0`. Do not use it yet; the package is unpublished.
-GitHub Actions release preparation does not establish npm account access or trusted-publisher
-configuration. Maintainers: see the [release guide](https://github.com/howarewoo/pi-btw/blob/main/docs/releasing.md).
+To install the initial release explicitly, use `pi install npm:@howarewoo/pi-btw@0.1.0`.
+Maintainers: see the [release guide](https://github.com/howarewoo/pi-btw/blob/main/docs/releasing.md).
 
 For local development:
 
