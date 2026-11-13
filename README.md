@@ -1,5 +1,8 @@
 # @howarewoo/pi-btw — Pi extension for concurrent side conversations
 
+[![npm version](https://img.shields.io/npm/v/%40howarewoo%2Fpi-btw)](https://www.npmjs.com/package/@howarewoo/pi-btw)
+[![npm downloads](https://img.shields.io/npm/dm/%40howarewoo%2Fpi-btw)](https://www.npmjs.com/package/@howarewoo/pi-btw)
+
 Run several independent, read-only `/btw` conversations alongside the **Pi coding agent**.
 Switch between threads in one hub, ask follow-up questions while the main agent works,
 and restore saved thread history with the parent session. Side conversations use a

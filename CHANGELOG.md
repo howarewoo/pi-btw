@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add npm version and monthly download badges to the README.
+
 ## 0.1.2 - 2026-11-13
 
 - Clarify the scoped package identity and concurrent read-only side conversation workflow in the README and npm metadata; add a two-thread quick start and move development details below user guidance.
