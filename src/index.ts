@@ -8,6 +8,9 @@ export default function btw(pi: ExtensionAPI) {
   let open = false;
   const load = async (ctx: ExtensionContext) => { close?.(); await threads.load(ctx); };
   pi.on("session_start", (_event, ctx) => load(ctx));
+  pi.on("session_before_tree", () => threads.suspend());
+  pi.on("session_before_switch", () => threads.suspend());
+  pi.on("session_before_fork", () => threads.suspend());
   pi.on("session_tree", (_event, ctx) => load(ctx));
   pi.on("session_shutdown", async () => { close?.(); await threads.dispose(true); });
   pi.registerCommand("btw", {

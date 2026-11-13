@@ -206,8 +206,13 @@ export class Threads {
           if (!active()) return;
           if (event.type === "message_update" && event.message.role === "assistant") thread.partial = event.message;
           if (event.type === "message_end") {
-            thread.partial = undefined;
-            this.persist(thread);
+            // Pi 1.5.2 appends the message synchronously after public listeners return.
+            queueMicrotask(() => {
+              if (!active()) return;
+              thread.partial = undefined;
+              this.persist(thread);
+              this.changed();
+            });
           }
           if (event.type === "tool_execution_start" || event.type === "tool_execution_update")
             thread.live = { toolName: event.toolName, toolCallId: event.toolCallId, args: event.args,
@@ -253,10 +258,10 @@ export class Threads {
     this.changed();
   }
 
-  async dispose(save: boolean) {
+  /** Fence and checkpoint before navigation; keep threads usable if navigation is cancelled. */
+  async suspend(save = true) {
     ++this.epoch;
-    const old = this.list.splice(0);
-    await Promise.all(old.map(async (thread) => {
+    await Promise.all(this.list.map(async (thread) => {
       thread.stopped = true;
       await thread.session?.abort();
       thread.session?.dispose();
@@ -266,6 +271,12 @@ export class Threads {
       thread.live = undefined;
       if (save) this.persist(thread);
     }));
+    this.changed();
+  }
+
+  async dispose(save: boolean) {
+    await this.suspend(save);
+    this.list.splice(0);
     this.selected = undefined;
     this.changed();
   }

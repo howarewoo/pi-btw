@@ -6,11 +6,13 @@ import { join } from "node:path";
 import { stripVTControlCharacters } from "node:util";
 import {
   ModelRuntime, ModelRegistry, SessionManager, buildSessionContext, initTheme,
+  createAgentSession, createEventBus, createExtensionRuntime, SettingsManager,
   type ExtensionAPI, type ExtensionCommandContext, type ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
 import { createAssistantMessageEventStream, getCurrentTools, type AssistantMessage, type ToolCall, type TranscriptContext } from "@earendil-works/pi-ai";
 import { getKeybindings, visibleWidth, type TUI } from "@earendil-works/pi-tui";
-import { Threads, ENTRY_TYPE, checkpoint, restore, messages, TOOL_NAMES } from "../src/runtime.ts";
+import { Threads, ENTRY_TYPE, checkpoint, restore, messages, TOOL_NAMES, resources } from "../src/runtime.ts";
+import { loadExtensionFromFactory } from "../node_modules/@earendil-works/pi-coding-agent/dist/core/extensions/loader.js";
 import { copyText } from "../src/copy.ts";
 import { createHub } from "../src/hub.ts";
 import btw from "../src/index.ts";
@@ -171,6 +173,118 @@ test("branch restore and stale async work never append into the replacement bran
   await new Promise((resolve) => setTimeout(resolve, 30));
   assert.equal(manager.getEntries().length, count);
   assert.equal(a.session, undefined);
+});
+
+test("pending-request checkpoints include the user and completed tool output without duplicates", async () => {
+  const saved: ReturnType<typeof checkpoint>[] = [];
+  const ctx = context();
+  const threads = new Threads((data) => saved.push(data));
+  const thread = threads.create("checkpoint probe", ctx);
+  const start = calls.length;
+  threads.submit(thread, "checkpoint question", ctx);
+  await until(() => calls.length > start);
+  assert.deepEqual(messages(restore(saved.at(-1))), messages(thread));
+  assert.equal(messages(restore(saved.at(-1))).length, 1);
+  await writeFile(join(directory, "checkpoint.txt"), "completed tool output");
+  calls.at(-1)!.tool("read", { path: join(directory, "checkpoint.txt") });
+  await until(() => calls.length > start + 1);
+  const restored = restore(saved.at(-1));
+  assert.deepEqual(messages(restored), messages(thread));
+  assert.deepEqual(messages(restored).map((message) => message.role), ["user", "assistant", "toolResult"]);
+  assert.match(JSON.stringify(messages(restored)), /completed tool output/);
+  await threads.dispose(false);
+});
+
+test("real SDK navigation fences children before delayed post-transition handlers and preserves outgoing checkpoints", async () => {
+  const manager = SessionManager.inMemory(directory);
+  const target = manager.appendCustomEntry("destination", {});
+  manager.appendMessage({ role: "user", content: "outgoing branch", timestamp: Date.now() });
+  const extensionRuntime = createExtensionRuntime();
+  const bus = createEventBus();
+  let delayed = false;
+  let finishOutgoing: (() => void) | undefined;
+  let cancel = false;
+  const earlier = await loadExtensionFromFactory((pi) => {
+    pi.on("session_tree", async () => {
+      if (manager.getLeafId() !== target) return;
+      finishOutgoing?.();
+      // Yield while the outgoing request could otherwise finish on the new leaf.
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      assert.equal(manager.getBranch().some((entry) => entry.type === "custom" && entry.customType === ENTRY_TYPE), false);
+      delayed = true;
+    });
+  }, directory, bus, extensionRuntime, "<earlier>");
+  const extension = await loadExtensionFromFactory(btw, directory, bus, extensionRuntime, "<btw>");
+  const later = await loadExtensionFromFactory((pi) => {
+    pi.on("session_before_tree", () => cancel ? { cancel: true } : undefined);
+  }, directory, bus, extensionRuntime, "<later>");
+  const loader = resources("navigation fixture");
+  loader.getExtensions = () => ({ extensions: [earlier, extension, later], errors: [], runtime: extensionRuntime });
+  const { session } = await createAgentSession({
+    cwd: directory, model, modelRuntime: runtime, sessionManager: manager, resourceLoader: loader,
+    settingsManager: SettingsManager.inMemory({ compaction: { enabled: false }, retry: { enabled: false } }),
+  });
+  const errors: string[] = [];
+  await session.bindExtensions({ mode: "tui", uiContext: {
+    ...context(manager).ui, custom: async () => undefined as never,
+  }, onError: (error) => errors.push(error.error) });
+  try {
+    const start = calls.length;
+    await session.prompt("/btw navigation question");
+    await until(() => calls.length > start);
+    finishOutgoing = () => calls.at(-1)!.finish("late completion");
+    // A later extension can cancel after BTW has suspended its children.
+    cancel = true;
+    assert.equal((await session.navigateTree(target)).cancelled, true);
+    const probe = new Threads(() => {});
+    await probe.load(context(manager));
+    assert.equal(probe.list.length, 1);
+    assert.match(JSON.stringify(messages(probe.list[0]!)), /navigation question/);
+    assert.equal(probe.list[0]!.status, "interrupted");
+    await probe.dispose(false);
+    // The same runtime is still usable following cancelled navigation.
+    await session.prompt("/btw after cancellation");
+    await until(() => calls.length > start + 1);
+    calls.at(-1)!.tool("read", { path: join(directory, "auth.json") });
+    await until(() => calls.length > start + 2);
+    const outgoing = manager.getLeafId()!;
+    cancel = false;
+    assert.equal((await session.navigateTree(target)).cancelled, false);
+    assert.equal(delayed, true);
+    const destination = new Threads(() => {});
+    await destination.load(context(manager));
+    assert.equal(destination.list.length, 0);
+    await destination.dispose(false);
+    assert.equal((await session.navigateTree(outgoing)).cancelled, false);
+    const restored = new Threads(() => {});
+    await restored.load(context(manager));
+    assert.equal(restored.list.length, 2);
+    assert.match(JSON.stringify(messages(restored.list[1]!)), /navigation question/);
+    assert.deepEqual(messages(restored.list[0]!).map((message) => message.role), ["user", "assistant", "toolResult"]);
+    await restored.dispose(false);
+    assert.deepEqual(errors, []);
+  } finally { session.dispose(); }
+});
+
+test("suspended threads can resume after cancelled navigation", async () => {
+  const threads = new Threads(() => {});
+  const ctx = context();
+  const thread = threads.create("cancelled navigation", ctx);
+  let start = calls.length;
+  threads.submit(thread, "first request", ctx);
+  await until(() => calls.length > start);
+  await threads.suspend();
+  assert.equal(threads.current(), thread);
+  assert.equal(thread.status, "interrupted");
+  assert.equal(thread.session, undefined);
+  start = calls.length;
+  threads.submit(thread, "resume request", ctx);
+  await until(() => calls.length > start);
+  assert.match(JSON.stringify(calls.at(-1)!.context), /first request/);
+  assert.match(JSON.stringify(calls.at(-1)!.context), /resume request/);
+  calls.at(-1)!.finish("resumed reply");
+  await until(() => thread.status === "idle");
+  await threads.dispose(false);
 });
 
 test("failure is per-thread, and a follow-up can recover", async () => {
