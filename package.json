@@ -1,0 +1,27 @@
+{
+  "name": "@howarewoo/pi-btw",
+  "version": "0.1.0",
+  "description": "Independent read-only side conversations for Pi 1.5.2",
+  "type": "module",
+  "license": "MIT",
+  "repository": "https://github.com/howarewoo/pi-btw",
+  "keywords": ["pi-package"],
+  "files": ["src", "README.md", "CHANGELOG.md", "LICENSE"],
+  "pi": { "extensions": ["./src/index.ts"] },
+  "scripts": { "typecheck": "tsc --noEmit", "test": "tsx --test test/*.test.ts" },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-agent-core": "*",
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-tui": "*"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "1.5.2",
+    "@earendil-works/pi-agent-core": "1.5.2",
+    "@earendil-works/pi-ai": "1.5.2",
+    "@earendil-works/pi-tui": "1.5.2",
+    "@types/node": "26.6.6",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2"
+  }
+}
