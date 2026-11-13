@@ -2,8 +2,9 @@
 
 ## Unreleased
 
-- Add Oxlint and Oxfmt with lint/fix and format/check scripts, enforce both in the existing CI and prepublish checks, and format the repository baseline. Exclude generated README images and the npm lockfile from formatting.
+## 0.1.1 - 2026-11-13
 
+- Add Oxlint and Oxfmt with lint/fix and format/check scripts, enforce both in the existing CI and prepublish checks, and format the repository baseline. Exclude generated README images and the npm lockfile from formatting.
 - Load the extension through a root-level entry point so npm installs appear as `@howarewoo/pi-btw` in Pi's startup list, without the `:src` suffix.
 - Allow pending Unreleased notes during release metadata checks while continuing to validate the current version's release notes, tag, and package metadata.
 
