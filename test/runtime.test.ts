@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { stripVTControlCharacters } from "node:util";
 import {
   ModelRuntime, ModelRegistry, SessionManager, buildSessionContext, initTheme,
   type ExtensionAPI, type ExtensionCommandContext, type ExtensionContext,
@@ -258,11 +259,36 @@ test("native hub: Unicode width, compact/wide resize, focus, draft switching, bu
   let closed = false;
   const hub = createHub(threads, ctx, tui, getKeybindings(), () => { closed = true; });
   hub.focused = true;
-  for (const [width, rows] of [[100, 30], [42, 24], [18, 18], [3, 2], [90, 35]]) {
+  for (const [width, rows] of [[128, 30], [70, 33], [100, 30], [42, 24], [18, 18], [3, 2], [90, 35]]) {
     terminal.rows = rows!;
     const lines = hub.render(width!);
     assert.ok(lines.length <= Math.max(1, Math.floor(rows! * .9)));
     assert.ok(lines.every((line) => visibleWidth(line) <= width!), `width ${width}`);
+    const rendered = lines.map(stripVTControlCharacters).join("\n");
+    for (const thread of [a, b]) {
+      assert.ok(!rendered.includes(thread.id.slice(0, 4)), `no roster ID at ${width}`);
+      assert.ok(!rendered.includes(thread.id.slice(0, 8)), `no selected ID at ${width}`);
+    }
+    if (width! >= 70) {
+      assert.ok(rendered.includes(`${b.title} · ${b.status} · ${b.model}`));
+      if (width! >= 76) {
+        assert.ok(rendered.includes(`› ${b.status} ${b.title}`));
+        assert.ok(rendered.includes(`${a.status} ${a.title}`));
+      } else assert.ok(rendered.includes(`1/2 ${b.title}`));
+    }
+    if (width! >= 16 && Math.floor(rows! * .9) >= 16) {
+      const plain = lines.map(stripVTControlCharacters);
+      const roster = width! >= 76 ? Math.min(32, Math.floor((width! - 4) / 3)) : 0;
+      const divider = roster
+        ? `├${"─".repeat(roster + 2)}┴${"─".repeat(width! - roster - 5)}┤`
+        : `├${"─".repeat(width! - 2)}┤`;
+      assert.equal(plain.at(-5), divider, `full-width footer divider at ${width}`);
+      assert.equal(plain.filter((line) => line === divider).length, 1);
+      assert.match(plain.at(-4)!, /Focus:/);
+      assert.match(plain.at(-3)!, /Tab focus/);
+      assert.match(plain.at(-2)!, /Enter send/);
+      assert.equal(plain.at(-1), `╰${"─".repeat(width! - 2)}╯`);
+    }
     hub.invalidate();
   }
   initTheme("light", false);

@@ -4,6 +4,11 @@ Independent, read-only side conversations for **Pi 1.5.2**. Ask a question witho
 interrupting the main agent or adding the side conversation to its future model context.
 The package identity is `@howarewoo/pi-btw`; it is not published to npm.
 
+![Synthetic native-renderer illustration of the wide BTW hub: four independent threads with idle, running, interrupted and cancelled statuses beside a read-only conversation, read tool output, reply and follow-up draft.](docs/images/btw-hub.svg)
+
+_Two-panel BTW hub rendered by the production UI with synthetic in-memory data.
+Not a terminal screenshot or live-provider evidence._
+
 ## Install
 
 Requires Pi 1.5.2 and a working model/provider login. Review extension source before installing:
@@ -25,8 +30,8 @@ pi install .
 ```
 
 Restart Pi, or run `/reload` in an existing idle session after installing. The package
-loads only `src/index.ts`; source modules, README, changelog, and license are included in
-its install contents. No build step is required. For a one-invocation trial without
+loads only `src/index.ts`; source modules, README and its images, changelog, and license
+are included in its install contents. No build step is required. For a one-invocation trial without
 changing package settings, use `pi -e ./src/index.ts` from the checkout.
 
 ### Moving from the older unscoped pi-btw extension
@@ -50,6 +55,12 @@ The centered overlay uses approximately 90% of the terminal. Wide terminals show
 newest-first roster on the left and native Pi chat/tool components on the right.
 Narrow terminals show the selected thread with compact navigation. Very small terminals
 ask you to resize rather than accepting invisible composer input.
+
+![Synthetic native-renderer illustration of the narrow BTW hub showing selected-conversation navigation, a read-only cache-policy question, native read tool output, reply and an unsent follow-up draft.](docs/images/btw-compact.svg)
+
+_Compact selected-conversation view from the same production renderer and synthetic
+threads. Not a terminal screenshot or live-provider evidence; narrow layouts truncate
+some shortcut hints, while the full controls are listed below._
 
 | Control | Action |
 | --- | --- |
@@ -133,6 +144,15 @@ A small offline model fixture in `test/interactive-fixture.ts` is available for 
 manual TUI checks; it is not installed with the package. Automated SDK tests and an offline
 TUI smoke do not establish live-provider compatibility or every terminal/clipboard backend.
 Compatibility beyond Pi 1.5.2 is not claimed.
+
+### Regenerate README illustrations
+
+From a checkout after `npm ci`, run `npm run render:readme` to regenerate
+`docs/images/btw-hub.svg` and `docs/images/btw-compact.svg`. The generator uses the
+production hub and native Pi transcript components with synthetic `Threads` and
+in-memory `SessionManager` data only. It loads no parent session and makes no provider
+requests. The ANSI-to-SVG converter is adapted from pi-extended-subagents (MIT).
+The generator and tests are not installed with the package; the README images are.
 
 ## License
 

@@ -101,11 +101,10 @@ export function createHub(
       } else {
         const current = view(thread);
         for (const [id, item] of views) item.editor.focused = focused && target === "composer" && id === thread.id && controlsVisible;
-        lines.push(row(safe(`${thread.id.slice(0, 8)} · ${thread.status} · ${thread.model}`)));
+        lines.push(row(safe(`${thread.title.replace(/\s+/g, " ")} · ${thread.status} · ${thread.model}`)));
         if (!roster) lines.push(row(safe(`${threads.list.indexOf(thread) + 1}/${threads.list.length} ${thread.title.replace(/\s+/g, " ")}`)));
         if (controlsVisible) {
-          const editorLines = current.editor.render(rightWidth);
-          const composer = editorLines;
+          const composer = current.editor.render(rightWidth);
           const head = lines.length;
           const footer = 5;
           viewport = Math.max(1, height - head - footer - composer.length);
@@ -121,9 +120,16 @@ export function createHub(
           const selectedIndex = threads.list.indexOf(thread);
           const rosterStart = Math.max(0, selectedIndex - Math.floor(right.length / 2));
           right.forEach((text, index) => {
+            // Extend the editor's bottom border (including its scroll indicator)
+            // across the roster, replacing its row rather than adding height.
+            if (index === right.length - 1) {
+              const left = roster ? `├${"─".repeat(roster + 2)}┴─` : "├─";
+              lines.push(paint(theme.fg("border", left) + text + theme.fg("border", "─┤")));
+              return;
+            }
             if (!roster) { lines.push(row(text)); return; }
             const item = threads.list[rosterStart + index];
-            const label = item ? `${item === thread ? "›" : " "} ${item.id.slice(0, 4)} ${item.status} ${safe(item.title.replace(/\s+/g, " "))}` : "";
+            const label = item ? `${item === thread ? "›" : " "} ${item.status} ${safe(item.title.replace(/\s+/g, " "))}` : "";
             const left = item === thread ? theme.fg("accent", label) : theme.fg("muted", label);
             lines.push(row(fit(left, roster) + theme.fg("border", " │ ") + fit(text, rightWidth)));
           });

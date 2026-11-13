@@ -3,7 +3,8 @@ MIT License
 Copyright (c) 2026 Adam Woo
 Copyright (c) 2026 Dan Bachelder
 
-Includes adapted native transcript rendering from pi-extended-subagents (Adam Woo)
+Includes adapted native transcript rendering and README ANSI-to-SVG conversion
+from pi-extended-subagents (Adam Woo)
 and SDK resource isolation patterns from pi-btw (Dan Bachelder).
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
