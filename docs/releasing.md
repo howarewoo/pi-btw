@@ -49,8 +49,11 @@ A repository owner and an npm package owner must separately authorize and comple
 ## Prepare and verify locally (no publication)
 
 Use a reviewed release branch from current `main`. Keep Pi peers `*` as required by
-Pi's package format; development SDK dependencies are pinned to **1.5.2**, the tested host.
-The Node minimum is **22.19.0**. Allowing other host versions is not a compatibility claim.
+Pi's package format; development SDK dependencies are pinned to **1.5.2**, the minimum
+supported host and automated-test baseline. Users may update to newer Pi versions;
+the development pins do not constrain the installed host. Later versions have not yet
+been verified, and future breaking SDK changes may require an extension update.
+The Node minimum is **22.19.0**.
 
 For a later version, update manifest and lockfile with `npm version <version> --no-git-tag-version`.
 Move Unreleased changes into a nonempty `## x.y.z - YYYY-MM-DD` changelog entry. Use stable

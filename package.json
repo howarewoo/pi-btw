@@ -1,7 +1,7 @@
 {
   "name": "@howarewoo/pi-btw",
   "version": "0.1.0",
-  "description": "Independent read-only side conversations for Pi 1.5.2",
+  "description": "Independent read-only side conversations for Pi 1.5.2 or later",
   "type": "module",
   "license": "MIT",
   "repository": {

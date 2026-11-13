@@ -1,6 +1,6 @@
 # pi-btw
 
-Independent, read-only side conversations for **Pi 1.5.2**. Ask a question without
+Independent, read-only side conversations for **Pi 1.5.2 or later**. Ask a question without
 interrupting the main agent or adding the side conversation to its future model context.
 The package identity is `@howarewoo/pi-btw`; it is not published to npm.
 
@@ -12,7 +12,7 @@ live-provider evidence._
 
 ## Install
 
-Requires Node.js >=22.19.0, Pi 1.5.2 and a working model/provider login. Review extension source before installing:
+Requires Node.js >=22.19.0, Pi >=1.5.2 and a working model/provider login. Review extension source before installing:
 extensions themselves run with Pi's operating-system permissions.
 
 ```sh
@@ -167,7 +167,10 @@ account access. `npm pack --dry-run` only lists install contents.
 A small offline model fixture in `test/interactive-fixture.ts` is available for isolated
 manual TUI checks; it is not installed with the package. Automated SDK tests and an offline
 TUI smoke do not establish live-provider compatibility or every terminal/clipboard backend.
-Compatibility beyond Pi 1.5.2 is not claimed.
+Pi 1.5.2 is the minimum supported version and the automated-test baseline, not an
+exact-version requirement. Newer Pi versions are allowed; you do not need to stay on
+1.5.2 to use this extension. Later versions have not yet been verified, and future
+breaking SDK changes may require an extension update.
 
 ### Regenerate README illustrations
 

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Clarify Pi 1.5.2 as the minimum supported version rather than an exact-version requirement; allow newer hosts while distinguishing the tested baseline from unverified later versions.
+
 - Add a fixed conversation-width separator below the selected header, without crossing the wide roster or changing the full-width footer divider.
 - Support native mouse-wheel transcript scrolling in Pi fullscreen mode; scrolling up pauses live follow, returning to the bottom resumes it, and wheel events elsewhere in the overlay do not scroll the parent chat. Retain PageUp/PageDown and Ctrl+End for keyboard scrolling, including regular mode.
 
