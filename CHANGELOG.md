@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.1.0 - 2026-11-12
+
+_Planned initial release; not yet published._
+
 - Clarify Pi 1.5.2 as the minimum supported version rather than an exact-version requirement; allow newer hosts while distinguishing the tested baseline from unverified later versions.
 
 - Add a fixed conversation-width separator below the selected header, without crossing the wide roster or changing the full-width footer divider.
@@ -17,10 +21,6 @@
 - Match live hub panels to the subagents overlay’s neutral gray at theme lightness, restoring the panel background across ANSI resets while preserving native transcript blocks.
 - Replace roster/header status words with colored circles and a separate selection marker; document the compact legend without adding viewport rows.
 - Remove the illustration-only background override and regenerate wide/compact synthetic README illustrations from the actual live theme paint.
-
-## 0.1.0 - 2026-11-12
-
-_Planned initial release; not yet published._
 
 - Prepare public scoped npm metadata, isolated packed-package checks, and tag-triggered trusted publishing; owner account/bootstrap and trust setup remain prerequisites.
 - Remove opaque shortened thread IDs from hub roster labels and the selected conversation header; show titles/status/model instead, retaining compact thread-number navigation.
