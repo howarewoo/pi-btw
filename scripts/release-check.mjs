@@ -18,7 +18,10 @@ const changelog = await readFile("CHANGELOG.md", "utf8");
 const sections = [...changelog.matchAll(/^## (.+)\n([\s\S]*?)(?=^## |$(?![\s\S]))/gm)];
 assert.equal(sections[0]?.[1], "Unreleased");
 // Pending changes belong to a future release, not the version being validated.
-assert.match(sections[1]?.[1] ?? "", new RegExp(`^${pkg.version.replaceAll(".", "\\.")} - \\d{4}-\\d{2}-\\d{2}$`));
+assert.match(
+  sections[1]?.[1] ?? "",
+  new RegExp(`^${pkg.version.replaceAll(".", "\\.")} - \\d{4}-\\d{2}-\\d{2}$`),
+);
 assert.equal(sections.filter((s) => s[1].startsWith(`${pkg.version} - `)).length, 1);
 assert.match(sections[1][2], /^- \S/m, "Release notes must contain changes");
 console.log(`Release metadata verified: ${tag} (not proof of publication or authentication)`);

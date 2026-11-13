@@ -24,18 +24,19 @@ A repository owner and an npm package owner must separately authorize and comple
    the initial tag workflow can create a package or establish npm ownership.
 4. After bootstrap, in **`@howarewoo/pi-btw` → Settings → Trusted publishing**, configure:
 
-   | Field | Exact value |
-   | --- | --- |
-   | Organization or user | `howarewoo` |
-   | Repository | `pi-btw` |
-   | Workflow filename | `release.yml` |
-   | Environment name | `npm` |
+   | Field                | Exact value   |
+   | -------------------- | ------------- |
+   | Organization or user | `howarewoo`   |
+   | Repository           | `pi-btw`      |
+   | Workflow filename    | `release.yml` |
+   | Environment name     | `npm`         |
 
    Allow **direct `npm publish`** if an allowed-actions selector is shown; stage-only
    permission is insufficient. This workflow does not use `npm stage`. It requires a
    GitHub-hosted runner, Node 24 and npm **>=11.5.1**. No `NPM_TOKEN`/`NODE_AUTH_TOKEN`
    secret or stored-token fallback is used. The publish helper refuses nonempty token
    variables and requires GitHub OIDC context.
+
 5. Create trust near the next deliberate OIDC release: per current npm documentation,
    a new trust configuration must have its **first successful publish within two days**
    or it expires. An already-published/identical-version skip is not an OIDC publish.

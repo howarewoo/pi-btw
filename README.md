@@ -28,8 +28,7 @@ For local development:
 git clone https://github.com/howarewoo/pi-btw.git
 cd pi-btw
 npm ci
-npm run typecheck
-npm test
+npm run check
 pi install .
 ```
 
@@ -71,21 +70,21 @@ same production renderer and synthetic threads. Not a terminal screenshot or
 live-provider evidence; narrow layouts truncate some shortcut hints, while the full
 controls are listed below._
 
-| Control | Action |
-| --- | --- |
-| Esc | Close the hub, **without stopping requests** |
-| Tab | Switch between composer and roster focus |
-| Up / Down in either pane | Select the previous/older or next/newer thread (no wrap) |
-| Enter in roster | Focus the composer |
-| Ctrl+Up / Ctrl+Down | Select the previous/older or next/newer thread from either panel |
-| Enter in composer | Send follow-up |
-| Shift+Enter or Ctrl+J | Insert a newline |
-| PageUp / PageDown | Scroll the selected transcript |
-| Mouse wheel over transcript (Pi fullscreen mode) | Scroll the selected transcript |
-| Ctrl+End | Return to live output at the bottom |
-| Ctrl+S | **Stop only the selected thread's current request** |
-| Ctrl+Y | Copy the latest assistant reply |
-| Alt+Y | Copy the user/assistant conversation with Markdown role labels |
+| Control                                          | Action                                                           |
+| ------------------------------------------------ | ---------------------------------------------------------------- |
+| Esc                                              | Close the hub, **without stopping requests**                     |
+| Tab                                              | Switch between composer and roster focus                         |
+| Up / Down in either pane                         | Select the previous/older or next/newer thread (no wrap)         |
+| Enter in roster                                  | Focus the composer                                               |
+| Ctrl+Up / Ctrl+Down                              | Select the previous/older or next/newer thread from either panel |
+| Enter in composer                                | Send follow-up                                                   |
+| Shift+Enter or Ctrl+J                            | Insert a newline                                                 |
+| PageUp / PageDown                                | Scroll the selected transcript                                   |
+| Mouse wheel over transcript (Pi fullscreen mode) | Scroll the selected transcript                                   |
+| Ctrl+End                                         | Return to live output at the bottom                              |
+| Ctrl+S                                           | **Stop only the selected thread's current request**              |
+| Ctrl+Y                                           | Copy the latest assistant reply                                  |
+| Alt+Y                                            | Copy the user/assistant conversation with Markdown role labels   |
 
 Composer submit, newline, thread navigation, and cancel honor Pi's corresponding TUI
 keybindings. Plain Up/Down are always reserved for thread navigation, even in the
@@ -155,7 +154,12 @@ hit provider context limits and fail visibly; start a fresh `/btw <prompt>` when
 `npm test` uses Node's test runner and the real Pi 1.5.2 SDK with a deterministic provider
 fixture. It checks tool declarations and execution/rejection, context isolation, concurrency,
 stop, restore/branch fencing, commands, copy filtering, and Unicode/narrow/wide hub rendering.
-`npm run typecheck` checks source and fixtures. `npm run check` runs both gates.
+`npm run typecheck` checks source and fixtures. `npm run lint` runs Oxlint with warnings
+treated as failures; `npm run lint:fix` applies safe lint fixes. `npm run format` formats
+the repository with Oxfmt, and `npm run format:check` checks formatting without writing.
+Generated README images and `package-lock.json` are excluded from formatting.
+`npm run check` runs lint, formatting, typechecking, and tests; CI and prepublish use
+the same checks.
 `npm run release:check` validates planned release metadata; `npm run test:package` packs,
 inspects and installs the actual tarball in a disposable offline consumer, then checks Pi
 1.5.2 loading and the noninteractive command boundary. These do not publish or verify npm
