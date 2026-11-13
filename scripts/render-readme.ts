@@ -14,11 +14,12 @@ process.env.COLORTERM = "truecolor";
 initTheme("dark", false);
 const cwd = "/synthetic/project";
 const threads = new Threads(() => {});
+// Oldest to newest, as if each synthetic thread had been appended on creation.
 const examples: { id: string; title: string; status: Thread["status"] }[] = [
-  { id: "a1111111-1111-4111-8111-111111111111", title: "Read cache policy", status: "idle" },
   { id: "b2222222-2222-4222-8222-222222222222", title: "Find retry limits", status: "running" },
   { id: "c3333333-3333-4333-8333-333333333333", title: "Review API notes", status: "interrupted" },
   { id: "d4444444-4444-4444-8444-444444444444", title: "Trace config lookup", status: "cancelled" },
+  { id: "a1111111-1111-4111-8111-111111111111", title: "Read cache policy", status: "idle" },
 ];
 for (const example of examples) {
   threads.list.push({
@@ -27,7 +28,8 @@ for (const example of examples) {
     draft: "", offset: 0, following: true,
   });
 }
-const selected = threads.list[0];
+// The most recently appended thread is selected, at the bottom of the roster.
+const selected = threads.list.at(-1)!;
 threads.selected = selected.id;
 selected.draft = "Does a cache miss change that?";
 selected.manager.appendMessage({
@@ -50,12 +52,8 @@ selected.manager.appendMessage(fauxAssistantMessage(
 const terminal = new ProcessTerminal();
 const tui = new TuiMainScreen(terminal);
 tui.requestRender = () => {};
-// Illustration-only: let hub panels use the charcoal canvas, not dark theme's purple
-// custom-message fill. Keep native transcript user/tool backgrounds and text accents.
-const illustrationTheme = Object.create(theme) as typeof theme;
-illustrationTheme.bg = (color, text) => color === "customMessageBg" ? text : theme.bg(color, text);
 // The hub observes only cwd/theme from ExtensionContext; no parent context is loaded.
-const ctx = { cwd, ui: { theme: illustrationTheme } } as ExtensionContext;
+const ctx = { cwd, ui: { theme } } as ExtensionContext;
 mkdirSync(new URL("../docs/images/", import.meta.url), { recursive: true });
 for (const [name, columns, rows] of [["hub", 128, 30], ["compact", 70, 33]] as const) {
   Object.defineProperty(terminal, "rows", { value: rows, configurable: true });
@@ -64,7 +62,7 @@ for (const [name, columns, rows] of [["hub", 128, 30], ["compact", 70, 33]] as c
   const lines = hub.render(columns);
   hub.dispose();
   const title = `BTW ${name === "hub" ? "two-panel hub" : "compact conversation"} — synthetic native-renderer illustration`;
-  const description = "Production createHub and native Pi transcript output with synthetic in-memory threads, read tool output, reply and follow-up draft. Not a terminal screenshot or live-provider evidence.";
+  const description = "Production createHub and native Pi transcript output with a live neutral panel background, colored status circles, synthetic in-memory threads, read tool output, reply and follow-up draft. Not a terminal screenshot or live-provider evidence.";
   const escape = (text: string) =>
     text
       .replaceAll("&", "&amp;")

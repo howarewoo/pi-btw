@@ -130,7 +130,7 @@ export class Threads {
       status: "idle", model: "not started", stopped: false,
       draft: "", offset: 0, following: true,
     };
-    this.list.unshift(thread);
+    this.list.push(thread);
     this.selected = thread.id;
     this.persist(thread);
     this.changed();
@@ -147,8 +147,9 @@ export class Threads {
         saved.set(thread.id, thread);
       } catch (error) { ctx.ui.notify(String(error), "error"); }
     }
-    this.list.push(...[...saved.values()].reverse());
-    this.selected = this.list[0]?.id;
+    // Map updates replace checkpoints without moving the first creation entry.
+    this.list.push(...saved.values());
+    this.selected = this.list.at(-1)?.id;
     this.changed();
   }
 

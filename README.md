@@ -4,10 +4,11 @@ Independent, read-only side conversations for **Pi 1.5.2**. Ask a question witho
 interrupting the main agent or adding the side conversation to its future model context.
 The package identity is `@howarewoo/pi-btw`; it is not published to npm.
 
-![Synthetic native-renderer illustration of the wide BTW hub: four independent threads with idle, running, interrupted and cancelled statuses beside a read-only conversation, read tool output, reply and follow-up draft.](docs/images/btw-hub.svg)
+![Synthetic native-renderer illustration of the wide BTW hub: four independent threads with green idle, active running, warning hollow interrupted and muted hollow cancelled circles on a neutral gray panel beside a read-only conversation, read tool output, reply and follow-up draft.](docs/images/btw-hub.svg)
 
-_Two-panel BTW hub rendered by the production UI with synthetic in-memory data.
-Not a terminal screenshot or live-provider evidence._
+_Two-panel BTW hub with colored status circles and a neutral gray panel, rendered by
+the production UI with synthetic in-memory data. Not a terminal screenshot or
+live-provider evidence._
 
 ## Install
 
@@ -58,37 +59,50 @@ Old saved session data is not deleted or imported.
   Submitting to a busy thread is visibly rejected and keeps the draft; nothing is queued or steered.
 
 The centered overlay uses approximately 90% of the terminal. Wide terminals show the
-newest-first roster on the left and native Pi chat/tool components on the right.
+oldest-first roster (new threads append at the bottom) on the left and native Pi chat/tool components on the right.
+Status circles appear beside each title and in the selected header: accent ◉ starting/running,
+green ● idle, red ● failed, muted ○ cancelled, warning ○ interrupted. The separate
+› marker indicates selection. Panel backgrounds are neutral gray at the current
+theme’s lightness; native user/tool blocks keep their own styling.
 Narrow terminals show the selected thread with compact navigation. Very small terminals
 ask you to resize rather than accepting invisible composer input.
 
-![Synthetic native-renderer illustration of the narrow BTW hub showing selected-conversation navigation, a read-only cache-policy question, native read tool output, reply and an unsent follow-up draft.](docs/images/btw-compact.svg)
+![Synthetic native-renderer illustration of the narrow BTW hub showing a green idle circle, neutral gray panel, selected-conversation navigation, a read-only cache-policy question, native read tool output, reply and an unsent follow-up draft.](docs/images/btw-compact.svg)
 
-_Compact selected-conversation view from the same production renderer and synthetic
-threads. Not a terminal screenshot or live-provider evidence; narrow layouts truncate
-some shortcut hints, while the full controls are listed below._
+_Compact selected-conversation view with a status circle and neutral panel from the
+same production renderer and synthetic threads. Not a terminal screenshot or
+live-provider evidence; narrow layouts truncate some shortcut hints, while the full
+controls are listed below._
 
 | Control | Action |
 | --- | --- |
 | Esc | Close the hub, **without stopping requests** |
 | Tab | Switch between composer and roster focus |
-| Up / Down in roster | Select a thread |
+| Up / Down in either pane | Select the previous/older or next/newer thread (no wrap) |
 | Enter in roster | Focus the composer |
-| Ctrl+Up / Ctrl+Down | Select the previous/newer or next/older thread from either panel |
+| Ctrl+Up / Ctrl+Down | Select the previous/older or next/newer thread from either panel |
 | Enter in composer | Send follow-up |
 | Shift+Enter or Ctrl+J | Insert a newline |
 | PageUp / PageDown | Scroll the selected transcript |
+| Mouse wheel over transcript (Pi fullscreen mode) | Scroll the selected transcript |
 | Ctrl+End | Return to live output at the bottom |
 | Ctrl+S | **Stop only the selected thread's current request** |
 | Ctrl+Y | Copy the latest assistant reply |
 | Alt+Y | Copy the user/assistant conversation with Markdown role labels |
 
-Composer submit, newline, roster navigation, and cancel honor Pi's corresponding TUI
-keybindings. The other hub shortcuts above are fixed. Modified-key support depends on
+Composer submit, newline, thread navigation, and cancel honor Pi's corresponding TUI
+keybindings. Plain Up/Down are always reserved for thread navigation, even in the
+multiline composer; use other editor controls (Left/Right, Home/End, etc.) to edit.
+Ctrl+Up/Down remain fixed navigation aliases. The other hub shortcuts above are fixed. Modified-key support depends on
 your terminal; see Pi's terminal setup documentation.
 
 Drafts and reading position are kept per thread when switching or closing/reopening the
-hub in the same runtime. Streaming follows the bottom until you scroll away. Stop retains
+hub in the same runtime. Streaming follows the bottom until you scroll up; scrolling back
+to the bottom or pressing Ctrl+End resumes live output. The selected header and its
+separator stay fixed while the transcript scrolls. Native wheel scrolling is available
+only in Pi fullscreen mode and only over the transcript (not the roster, header, or
+composer). In regular mode the terminal owns mouse scrolling; use PageUp/PageDown
+and Ctrl+End to scroll the BTW transcript instead. Stop retains
 the SDK's partial assistant response. A failed, cancelled, or interrupted thread accepts
 new follow-ups; other threads are unaffected.
 
@@ -161,7 +175,8 @@ From a checkout after `npm ci`, run `npm run render:readme` to regenerate
 `docs/images/btw-hub.svg` and `docs/images/btw-compact.svg`. The generator uses the
 production hub and native Pi transcript components with synthetic `Threads` and
 in-memory `SessionManager` data only. It loads no parent session and makes no provider
-requests. The ANSI-to-SVG converter is adapted from pi-extended-subagents (MIT).
+requests. It uses the real theme and live neutral panel paint without illustration-only
+theme overrides. The ANSI-to-SVG converter is adapted from pi-extended-subagents (MIT).
 The generator and tests are not installed with the package; the README images are.
 
 ## License

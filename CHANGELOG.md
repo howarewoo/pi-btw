@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- Add a fixed conversation-width separator below the selected header, without crossing the wide roster or changing the full-width footer divider.
+- Support native mouse-wheel transcript scrolling in Pi fullscreen mode; scrolling up pauses live follow, returning to the bottom resumes it, and wheel events elsewhere in the overlay do not scroll the parent chat. Retain PageUp/PageDown and Ctrl+End for keyboard scrolling, including regular mode.
+
+- Label the footer copy shortcuts explicitly as “Copy reply” and “Copy conversation” without changing their bindings or behavior.
+
+- Scope the selected conversation’s status/title/model header to the thread column in wide hubs, with the roster starting directly below the outer frame; retain the full-width compact header and footer divider.
+
+- Reserve plain Up/Down for older/newer thread navigation from either pane, with Pi selection-key remappings and Ctrl+Up/Down aliases; keep per-thread drafts, reading positions, and focus.
+- Append new threads at the bottom of the oldest-first roster and restore SDK checkpoints in creation order, without moving older threads on follow-up updates or changing saved data.
+
+- Match live hub panels to the subagents overlay’s neutral gray at theme lightness, restoring the panel background across ANSI resets while preserving native transcript blocks.
+- Replace roster/header status words with colored circles and a separate selection marker; document the compact legend without adding viewport rows.
+- Remove the illustration-only background override and regenerate wide/compact synthetic README illustrations from the actual live theme paint.
+
 ## 0.1.0 - 2026-11-12
 
 _Planned initial release; not yet published._

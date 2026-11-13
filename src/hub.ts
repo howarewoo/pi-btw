@@ -1,11 +1,20 @@
-import { copyToClipboard, getSelectListTheme, type ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { copyToClipboard, getSelectListTheme, type ExtensionContext, type ThemeColor } from "@earendil-works/pi-coding-agent";
 import {
-  Editor, ScrollView, matchesKey, truncateToWidth, visibleWidth,
+  Editor, ScrollView, colorToOklch, oklchColor, matchesKey, truncateToWidth, visibleWidth,
   type Component, type Focusable, type KeybindingsManager, type TUI,
 } from "@earendil-works/pi-tui";
-import { Threads, busy, messages, type Thread } from "./runtime.ts";
+import { Threads, busy, messages, type Thread, type Status } from "./runtime.ts";
 import { createNativeThread, safe } from "./transcript.ts";
 import { copyText } from "./copy.ts";
+
+const statusIndicators = {
+  starting: { glyph: "◉", color: "accent" },
+  running: { glyph: "◉", color: "accent" },
+  idle: { glyph: "●", color: "success" },
+  failed: { glyph: "●", color: "error" },
+  cancelled: { glyph: "○", color: "muted" },
+  interrupted: { glyph: "○", color: "warning" },
+} satisfies Record<Status, { glyph: string; color: ThemeColor }>;
 
 export function layout(width: number, rows: number) {
   const height = Math.max(1, Math.floor(rows * 0.9));
@@ -25,6 +34,7 @@ export function createHub(
   let closed = false;
   let viewport = 1;
   let controlsVisible = false;
+  let threadBounds: { x: number; y: number; width: number; height: number; id: string; rows: number; columns: number } | undefined;
   const native = createNativeThread({ tui, cwd: ctx.cwd });
   const views = new Map<string, { editor: Editor; scroll: ScrollView }>();
   const refresh = () => { if (!closed) tui.requestRender(); };
@@ -79,6 +89,7 @@ export function createHub(
       for (const [id, item] of views) item.editor.focused = value && target === "composer" && id === threads.selected;
     },
     render(width) {
+      threadBounds = undefined;
       const size = layout(width, tui.terminal.rows);
       const { height, inner, roster, transcript: rightWidth } = size;
       controlsVisible = width >= 16 && height >= 16;
@@ -87,7 +98,20 @@ export function createHub(
         const clipped = truncateToWidth(text, Math.max(0, columns));
         return clipped + " ".repeat(Math.max(0, columns - visibleWidth(clipped)));
       };
-      const paint = (text: string) => theme.bg("customMessageBg", fit(text, width));
+      const panelBg = oklchColor(colorToOklch(theme.colors.customMessageBg).l, 0, 0);
+      const paint = (text: string) => {
+        const clipped = truncateToWidth(text, width);
+        const padded = clipped + " ".repeat(Math.max(0, width - visibleWidth(clipped)));
+        const restoreBg = theme.style("", { bg: panelBg }).replace(/\x1b\[49m$/, "");
+        return padded
+          .split("\x1b[0m")
+          .map((part) => theme.style(part.replaceAll("\x1b[49m", restoreBg), { bg: panelBg }))
+          .join("\x1b[0m");
+      };
+      const indicator = (status: Status) => {
+        const { glyph, color } = statusIndicators[status];
+        return theme.fg(color, glyph);
+      };
       if (width < 4 || height < 3) return [paint("BTW · Esc")];
       const row = (text: string) => paint(theme.fg("border", "│ ") + fit(text, inner) + theme.fg("border", " │"));
       const frame = (left: string, title: string, right: string) => paint(theme.fg("border", left) +
@@ -101,13 +125,21 @@ export function createHub(
       } else {
         const current = view(thread);
         for (const [id, item] of views) item.editor.focused = focused && target === "composer" && id === thread.id && controlsVisible;
-        lines.push(row(safe(`${thread.title.replace(/\s+/g, " ")} · ${thread.status} · ${thread.model}`)));
-        if (!roster) lines.push(row(safe(`${threads.list.indexOf(thread) + 1}/${threads.list.length} ${thread.title.replace(/\s+/g, " ")}`)));
+        const header = `${indicator(thread.status)} ${safe(`${thread.title.replace(/\s+/g, " ")} · ${thread.model}`)}`;
+        const paneRow = (text: string, item?: Thread) => {
+          if (!roster) return row(text);
+          const left = item ? `${theme.fg(item === thread ? "accent" : "muted", item === thread ? "›" : " ")} ${indicator(item.status)} ${theme.fg(item === thread ? "accent" : "muted", safe(item.title.replace(/\s+/g, " ")))}` : "";
+          return row(fit(left, roster) + theme.fg("border", " │ ") + fit(text, rightWidth));
+        };
+        const separator = theme.fg("border", "─".repeat(rightWidth));
+        if (!roster) lines.push(row(header), row(separator), row(safe(`${threads.list.indexOf(thread) + 1}/${threads.list.length} ${thread.title.replace(/\s+/g, " ")}`)));
         if (controlsVisible) {
           const composer = current.editor.render(rightWidth);
-          const head = lines.length;
+          const head = lines.length + (roster ? 2 : 0);
           const footer = 5;
           viewport = Math.max(1, height - head - footer - composer.length);
+          threadBounds = { x: 2 + (roster ? roster + 3 : 0), y: head, width: rightWidth,
+            height: viewport, id: thread.id, rows: tui.terminal.rows, columns: tui.terminal.columns };
           const content = native.render(thread.id, messages(thread), thread.partial, thread.live, rightWidth);
           const scroll = current.scroll;
           if (thread.following) scroll.scrollToEnd();
@@ -115,7 +147,7 @@ export function createHub(
           if (!thread.following) scroll.scrollTo(thread.offset, { disableFollow: true });
           thread.offset = scroll.scrollTop;
           const transcript = content.slice(scroll.scrollTop, scroll.scrollTop + viewport);
-          const right = [...Array.from({ length: viewport }, (_, index) => transcript[index] ?? ""),
+          const right = [...(roster ? [header, separator] : []), ...Array.from({ length: viewport }, (_, index) => transcript[index] ?? ""),
             theme.fg("muted", thread.following ? "Follow-up · LIVE" : "Reading · Ctrl+End returns to live"), ...composer];
           const selectedIndex = threads.list.indexOf(thread);
           const rosterStart = Math.max(0, selectedIndex - Math.floor(right.length / 2));
@@ -127,24 +159,26 @@ export function createHub(
               lines.push(paint(theme.fg("border", left) + text + theme.fg("border", "─┤")));
               return;
             }
-            if (!roster) { lines.push(row(text)); return; }
-            const item = threads.list[rosterStart + index];
-            const label = item ? `${item === thread ? "›" : " "} ${item.status} ${safe(item.title.replace(/\s+/g, " "))}` : "";
-            const left = item === thread ? theme.fg("accent", label) : theme.fg("muted", label);
-            lines.push(row(fit(left, roster) + theme.fg("border", " │ ") + fit(text, rightWidth)));
+            lines.push(paneRow(text, threads.list[rosterStart + index]));
           });
-        } else lines.push(row("Resize for transcript and composer. Esc closes."));
+        } else {
+          if (roster) lines.push(paneRow(header, thread), paneRow(separator));
+          lines.push(row("Resize for transcript and composer. Esc closes."));
+        }
         lines.push(row(theme.fg(thread.error ? "error" : "muted", safe(notice || thread.error || `Focus: ${target} · local read-only tools`))));
-        lines.push(row(theme.fg("dim", "Tab focus · ↑↓ roster · Ctrl+↑↓ threads · PgUp/PgDn read")));
-        lines.push(row(theme.fg("dim", "Enter send · Shift+Enter newline · Ctrl+S Stop · Ctrl+Y reply · Alt+Y all · Esc close")));
+        lines.push(row(theme.fg("dim", "Tab focus · ↑↓ threads · Ctrl+↑↓ threads · PgUp/PgDn read")));
+        lines.push(row(theme.fg("dim", "Enter send · Shift+Enter newline · Ctrl+S Stop · Ctrl+Y Copy reply · Alt+Y Copy conversation · Esc close")));
       }
       while (lines.length < height - 1) lines.push(row(""));
       return [...lines.slice(0, height - 1), frame("╰", "", "╯")];
     },
     handleInput(data) {
       if (keys.matches(data, "tui.select.cancel")) { done(); return; }
-      if (matchesKey(data, "ctrl+up")) { switchBy(-1); return; }
-      if (matchesKey(data, "ctrl+down")) { switchBy(1); return; }
+      // Reserve arrows before either pane (especially Editor cursor/history) sees them.
+      if (matchesKey(data, "up") || matchesKey(data, "ctrl+up")) { switchBy(-1); return; }
+      if (matchesKey(data, "down") || matchesKey(data, "ctrl+down")) { switchBy(1); return; }
+      if (keys.matches(data, "tui.select.up")) { switchBy(-1); return; }
+      if (keys.matches(data, "tui.select.down")) { switchBy(1); return; }
       if (matchesKey(data, "tab")) { target = target === "roster" ? "composer" : "roster"; refresh(); return; }
       const thread = threads.current();
       if (!thread) return;
@@ -159,9 +193,7 @@ export function createHub(
         thread.following = true;
         view(thread).scroll.scrollToEnd();
       } else if (target === "roster") {
-        if (keys.matches(data, "tui.select.up")) switchBy(-1);
-        else if (keys.matches(data, "tui.select.down")) switchBy(1);
-        else if (keys.matches(data, "tui.select.confirm")) target = "composer";
+        if (keys.matches(data, "tui.select.confirm")) target = "composer";
       } else if (controlsVisible) {
         const editor = view(thread).editor;
         if (keys.matches(data, "tui.input.submit")) {
@@ -174,12 +206,26 @@ export function createHub(
       }
       refresh();
     },
+    handleMouse(event) {
+      if (event.type !== "wheel" || closed) return;
+      // Pi fullscreen dispatches component-local coordinates. Consume all overlay
+      // wheels, but only the rendered selected transcript may change reading state.
+      const bounds = threadBounds;
+      if (bounds && bounds.id === threads.selected &&
+        bounds.rows === tui.terminal.rows && bounds.columns === tui.terminal.columns &&
+        event.x >= bounds.x && event.x < bounds.x + bounds.width &&
+        event.y >= bounds.y && event.y < bounds.y + bounds.height && event.wheelDelta)
+        scrollBy(event.wheelDelta);
+      return { handled: true };
+    },
     invalidate() {
+      threadBounds = undefined;
       native.invalidate();
       for (const item of views.values()) item.editor.invalidate();
     },
     dispose() {
       closed = true;
+      threadBounds = undefined;
       unsubscribe();
       native.clear();
       views.clear();
