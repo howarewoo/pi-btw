@@ -5,13 +5,44 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { stripVTControlCharacters } from "node:util";
 import {
-  ModelRuntime, ModelRegistry, SessionManager, buildSessionContext, initTheme,
-  createAgentSession, createEventBus, createExtensionRuntime, SettingsManager,
-  type ExtensionAPI, type ExtensionCommandContext, type ExtensionContext,
+  ModelRuntime,
+  ModelRegistry,
+  SessionManager,
+  buildSessionContext,
+  initTheme,
+  createAgentSession,
+  createEventBus,
+  createExtensionRuntime,
+  SettingsManager,
+  type ExtensionAPI,
+  type ExtensionCommandContext,
+  type ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
-import { createAssistantMessageEventStream, getCurrentTools, type AssistantMessage, type ToolCall, type TranscriptContext } from "@earendil-works/pi-ai";
-import { colorToOklch, oklchColor, getKeybindings, KeybindingsManager, TUI_KEYBINDINGS, visibleWidth, type TUI } from "@earendil-works/pi-tui";
-import { Threads, ENTRY_TYPE, checkpoint, restore, messages, TOOL_NAMES, resources } from "../src/runtime.ts";
+import {
+  createAssistantMessageEventStream,
+  getCurrentTools,
+  type AssistantMessage,
+  type ToolCall,
+  type TranscriptContext,
+} from "@earendil-works/pi-ai";
+import {
+  colorToOklch,
+  oklchColor,
+  getKeybindings,
+  KeybindingsManager,
+  TUI_KEYBINDINGS,
+  visibleWidth,
+  type TUI,
+} from "@earendil-works/pi-tui";
+import {
+  Threads,
+  ENTRY_TYPE,
+  checkpoint,
+  restore,
+  messages,
+  TOOL_NAMES,
+  resources,
+} from "../src/runtime.ts";
 import { loadExtensionFromFactory } from "../node_modules/@earendil-works/pi-coding-agent/dist/core/extensions/loader.js";
 import { copyText } from "../src/copy.ts";
 import { createHub } from "../src/hub.ts";
@@ -23,16 +54,42 @@ process.env.PI_CODING_AGENT_DIR = directory;
 await writeFile(join(directory, "auth.json"), "{}");
 initTheme();
 const zeroCost = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 };
-const calls: { context: TranscriptContext; finish: (text?: string) => void; tool: (name: string, args: Record<string, unknown>) => void; signal?: AbortSignal }[] = [];
-const runtime = await ModelRuntime.create({ authPath: join(directory, "auth.json"), modelsPath: null, allowModelNetwork: false });
+const calls: {
+  context: TranscriptContext;
+  finish: (text?: string) => void;
+  tool: (name: string, args: Record<string, unknown>) => void;
+  signal?: AbortSignal;
+}[] = [];
+const runtime = await ModelRuntime.create({
+  authPath: join(directory, "auth.json"),
+  modelsPath: null,
+  allowModelNetwork: false,
+});
 runtime.registerProvider("btw-fixture", {
-  api: "openai-completions", apiKey: "fixture-not-a-secret", baseUrl: "https://invalid.example",
-  models: [{ id: "test", name: "test", reasoning: false, input: ["text"], cost: zeroCost, contextWindow: 100000, maxTokens: 1000 }],
+  api: "openai-completions",
+  apiKey: "fixture-not-a-secret",
+  baseUrl: "https://invalid.example",
+  models: [
+    {
+      id: "test",
+      name: "test",
+      reasoning: false,
+      input: ["text"],
+      cost: zeroCost,
+      contextWindow: 100000,
+      maxTokens: 1000,
+    },
+  ],
   streamSimple(model, context, options) {
     const stream = createAssistantMessageEventStream();
     const reply: AssistantMessage = {
-      role: "assistant", api: model.api, provider: model.provider, model: model.id,
-      content: [{ type: "text", text: "partial" }], stopReason: "stop", timestamp: Date.now(),
+      role: "assistant",
+      api: model.api,
+      provider: model.provider,
+      model: model.id,
+      content: [{ type: "text", text: "partial" }],
+      stopReason: "stop",
+      timestamp: Date.now(),
       usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: zeroCost },
     };
     let ended = false;
@@ -42,12 +99,16 @@ runtime.registerProvider("btw-fixture", {
       reply.content = [{ type: "text", text }];
       stream.push({ type: "done", reason: "stop", message: reply });
     };
-    options?.signal?.addEventListener("abort", () => {
-      if (ended) return;
-      ended = true;
-      reply.stopReason = "aborted";
-      stream.push({ type: "error", reason: "aborted", error: reply });
-    }, { once: true });
+    options?.signal?.addEventListener(
+      "abort",
+      () => {
+        if (ended) return;
+        ended = true;
+        reply.stopReason = "aborted";
+        stream.push({ type: "error", reason: "aborted", error: reply });
+      },
+      { once: true },
+    );
     const tool = (name: string, args: Record<string, unknown>) => {
       if (ended) return;
       ended = true;
@@ -57,7 +118,12 @@ runtime.registerProvider("btw-fixture", {
     };
     calls.push({ context: structuredClone(context), finish, tool, signal: options?.signal });
     stream.push({ type: "start", partial: structuredClone(reply) });
-    stream.push({ type: "text_delta", contentIndex: 0, delta: "partial", partial: structuredClone(reply) });
+    stream.push({
+      type: "text_delta",
+      contentIndex: 0,
+      delta: "partial",
+      partial: structuredClone(reply),
+    });
     return stream;
   },
 });
@@ -66,8 +132,13 @@ const model = runtime.getModel("btw-fixture", "test")!;
 
 function context(manager = SessionManager.inMemory(directory)) {
   return {
-    cwd: directory, mode: "tui", hasUI: true, model, thinkingLevel: "off",
-    modelRegistry: new ModelRegistry(runtime), sessionManager: manager,
+    cwd: directory,
+    mode: "tui",
+    hasUI: true,
+    model,
+    thinkingLevel: "off",
+    modelRegistry: new ModelRegistry(runtime),
+    sessionManager: manager,
     getSystemPrompt: () => "Project instruction: preserve invariants.",
     ui: { theme, notify() {} },
   } as unknown as ExtensionCommandContext;
@@ -82,7 +153,7 @@ async function until(predicate: () => boolean) {
 
 test("real SDK: independent requests, frozen context, exact tools, stop, copy, parent exclusion and restore", async () => {
   const ctx = context();
-  ctx.sessionManager; // Fixture parent manager uses the same public SDK as the children.
+  // Fixture parent manager uses the same public SDK as the children.
   const parent = ctx.sessionManager as SessionManager;
   parent.appendMessage({ role: "user", content: "parent-at-creation", timestamp: Date.now() });
   const threads = new Threads((data) => parent.appendCustomEntry(ENTRY_TYPE, data));
@@ -96,10 +167,20 @@ test("real SDK: independent requests, frozen context, exact tools, stop, copy, p
   await until(() => calls.length === 2 && !!a.partial && !!b.partial);
   assert.deepEqual(a.session!.getActiveToolNames().sort(), [...TOOL_NAMES].sort());
   for (const call of calls) {
-    assert.deepEqual(getCurrentTools(call.context.messages).map((tool) => tool.name).sort(), [...TOOL_NAMES].sort());
+    assert.deepEqual(
+      getCurrentTools(call.context.messages)
+        .map((tool) => tool.name)
+        .sort(),
+      [...TOOL_NAMES].sort(),
+    );
     assert.match(JSON.stringify(call.context), /parent-at-creation/);
   }
-  assert.equal(a.session!.getAllTools().some((tool) => ["write", "edit", "bash", "codemode"].includes(tool.name)), false);
+  assert.equal(
+    a
+      .session!.getAllTools()
+      .some((tool) => ["write", "edit", "bash", "codemode"].includes(tool.name)),
+    false,
+  );
   const parentProjection = JSON.stringify(buildSessionContext(parent.getEntries()).messages);
   assert.doesNotMatch(parentProjection, /side A|side B|partial/);
   assert.equal(copyText(a, false), "partial");
@@ -190,7 +271,10 @@ test("pending-request checkpoints include the user and completed tool output wit
   await until(() => calls.length > start + 1);
   const restored = restore(saved.at(-1));
   assert.deepEqual(messages(restored), messages(thread));
-  assert.deepEqual(messages(restored).map((message) => message.role), ["user", "assistant", "toolResult"]);
+  assert.deepEqual(
+    messages(restored).map((message) => message.role),
+    ["user", "assistant", "toolResult"],
+  );
   assert.match(JSON.stringify(messages(restored)), /completed tool output/);
   await threads.dispose(false);
 });
@@ -204,30 +288,63 @@ test("real SDK navigation fences children before delayed post-transition handler
   let delayed = false;
   let finishOutgoing: (() => void) | undefined;
   let cancel = false;
-  const earlier = await loadExtensionFromFactory((pi) => {
-    pi.on("session_tree", async () => {
-      if (manager.getLeafId() !== target) return;
-      finishOutgoing?.();
-      // Yield while the outgoing request could otherwise finish on the new leaf.
-      await new Promise((resolve) => setTimeout(resolve, 30));
-      assert.equal(manager.getBranch().some((entry) => entry.type === "custom" && entry.customType === ENTRY_TYPE), false);
-      delayed = true;
-    });
-  }, directory, bus, extensionRuntime, "<earlier>");
+  const earlier = await loadExtensionFromFactory(
+    (pi) => {
+      pi.on("session_tree", async () => {
+        if (manager.getLeafId() !== target) return;
+        finishOutgoing?.();
+        // Yield while the outgoing request could otherwise finish on the new leaf.
+        await new Promise((resolve) => setTimeout(resolve, 30));
+        assert.equal(
+          manager
+            .getBranch()
+            .some((entry) => entry.type === "custom" && entry.customType === ENTRY_TYPE),
+          false,
+        );
+        delayed = true;
+      });
+    },
+    directory,
+    bus,
+    extensionRuntime,
+    "<earlier>",
+  );
   const extension = await loadExtensionFromFactory(btw, directory, bus, extensionRuntime, "<btw>");
-  const later = await loadExtensionFromFactory((pi) => {
-    pi.on("session_before_tree", () => cancel ? { cancel: true } : undefined);
-  }, directory, bus, extensionRuntime, "<later>");
+  const later = await loadExtensionFromFactory(
+    (pi) => {
+      pi.on("session_before_tree", () => (cancel ? { cancel: true } : undefined));
+    },
+    directory,
+    bus,
+    extensionRuntime,
+    "<later>",
+  );
   const loader = resources("navigation fixture");
-  loader.getExtensions = () => ({ extensions: [earlier, extension, later], errors: [], runtime: extensionRuntime });
+  loader.getExtensions = () => ({
+    extensions: [earlier, extension, later],
+    errors: [],
+    runtime: extensionRuntime,
+  });
   const { session } = await createAgentSession({
-    cwd: directory, model, modelRuntime: runtime, sessionManager: manager, resourceLoader: loader,
-    settingsManager: SettingsManager.inMemory({ compaction: { enabled: false }, retry: { enabled: false } }),
+    cwd: directory,
+    model,
+    modelRuntime: runtime,
+    sessionManager: manager,
+    resourceLoader: loader,
+    settingsManager: SettingsManager.inMemory({
+      compaction: { enabled: false },
+      retry: { enabled: false },
+    }),
   });
   const errors: string[] = [];
-  await session.bindExtensions({ mode: "tui", uiContext: {
-    ...context(manager).ui, custom: async () => undefined as never,
-  }, onError: (error) => errors.push(error.error) });
+  await session.bindExtensions({
+    mode: "tui",
+    uiContext: {
+      ...context(manager).ui,
+      custom: async () => undefined as never,
+    },
+    onError: (error) => errors.push(error.error),
+  });
   try {
     const start = calls.length;
     await session.prompt("/btw navigation question");
@@ -260,10 +377,15 @@ test("real SDK navigation fences children before delayed post-transition handler
     await restored.load(context(manager));
     assert.equal(restored.list.length, 2);
     assert.match(JSON.stringify(messages(restored.list[0]!)), /navigation question/);
-    assert.deepEqual(messages(restored.list[1]!).map((message) => message.role), ["user", "assistant", "toolResult"]);
+    assert.deepEqual(
+      messages(restored.list[1]!).map((message) => message.role),
+      ["user", "assistant", "toolResult"],
+    );
     await restored.dispose(false);
     assert.deepEqual(errors, []);
-  } finally { session.dispose(); }
+  } finally {
+    session.dispose();
+  }
 });
 
 test("suspended threads can resume after cancelled navigation", async () => {
@@ -304,9 +426,19 @@ test("failure is per-thread, and a follow-up can recover", async () => {
 
 test("real SDK missing credentials fail visibly without model substitution", async () => {
   runtime.registerProvider("btw-no-credentials", {
-    api: "openai-completions", baseUrl: "https://invalid.example",
-    models: [{ id: "missing", name: "Missing credentials", reasoning: false, input: ["text"],
-      cost: zeroCost, contextWindow: 10000, maxTokens: 100 }],
+    api: "openai-completions",
+    baseUrl: "https://invalid.example",
+    models: [
+      {
+        id: "missing",
+        name: "Missing credentials",
+        reasoning: false,
+        input: ["text"],
+        cost: zeroCost,
+        contextWindow: 10000,
+        maxTokens: 100,
+      },
+    ],
   });
   await runtime.refresh({ allowNetwork: false });
   const ctx = context();
@@ -326,8 +458,14 @@ test("command: bare hub has no thread/request, identical prompts always create s
   let handler: ((args: string, ctx: ExtensionCommandContext) => Promise<void>) | undefined;
   const saved: unknown[] = [];
   const api = {
-    on() {}, appendEntry(_type: string, data: unknown) { saved.push(data); },
-    registerCommand(name: string, options: { handler: typeof handler }) { assert.equal(name, "btw"); handler = options.handler; },
+    on() {},
+    appendEntry(_type: string, data: unknown) {
+      saved.push(data);
+    },
+    registerCommand(name: string, options: { handler: typeof handler }) {
+      assert.equal(name, "btw");
+      handler = options.handler;
+    },
   } as unknown as ExtensionAPI;
   btw(api);
   const ctx = context();
@@ -350,15 +488,27 @@ test("copy strips controls, thinking, tool payloads and inherited context", () =
   const a = threads.create("copy probe", ctx);
   a.manager.appendMessage({ role: "user", content: "visible user", timestamp: Date.now() });
   a.manager.appendMessage({
-    role: "assistant", api: model.api, provider: model.provider, model: model.id,
-    content: [{ type: "thinking", thinking: "private thinking" },
+    role: "assistant",
+    api: model.api,
+    provider: model.provider,
+    model: model.id,
+    content: [
+      { type: "thinking", thinking: "private thinking" },
       { type: "text", text: "\x1b[31mvisible reply\x1b[0m\x1b]52;c;payload\x07" },
-      { type: "toolCall", id: "copy-call", name: "read", arguments: { path: "tool-private-path" } }],
-    stopReason: "toolUse", timestamp: Date.now(),
+      { type: "toolCall", id: "copy-call", name: "read", arguments: { path: "tool-private-path" } },
+    ],
+    stopReason: "toolUse",
+    timestamp: Date.now(),
     usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: zeroCost },
   });
-  a.manager.appendMessage({ role: "toolResult", toolCallId: "copy-call", toolName: "read",
-    content: [{ type: "text", text: "private tool result" }], isError: false, timestamp: Date.now() });
+  a.manager.appendMessage({
+    role: "toolResult",
+    toolCallId: "copy-call",
+    toolName: "read",
+    content: [{ type: "text", text: "private tool result" }],
+    isError: false,
+    timestamp: Date.now(),
+  });
   assert.equal(copyText(a, false), "visible reply");
   assert.equal(copyText(a, true), "## User\n\nvisible user\n\n## Assistant\n\nvisible reply");
 });
@@ -371,13 +521,26 @@ test("native hub: Unicode width, compact/wide resize, focus, draft switching, bu
   const terminal = { rows: 30, columns: 100 };
   const tui = { terminal, requestRender() {} } as unknown as TUI;
   let closed = false;
-  const hub = createHub(threads, ctx, tui, getKeybindings(), () => { closed = true; });
+  const hub = createHub(threads, ctx, tui, getKeybindings(), () => {
+    closed = true;
+  });
   hub.focused = true;
-  for (const [width, rows] of [[128, 30], [70, 33], [100, 30], [42, 24], [18, 18], [3, 2], [90, 35]]) {
+  for (const [width, rows] of [
+    [128, 30],
+    [70, 33],
+    [100, 30],
+    [42, 24],
+    [18, 18],
+    [3, 2],
+    [90, 35],
+  ]) {
     terminal.rows = rows!;
     const lines = hub.render(width!);
-    assert.ok(lines.length <= Math.max(1, Math.floor(rows! * .9)));
-    assert.ok(lines.every((line) => visibleWidth(line) <= width!), `width ${width}`);
+    assert.ok(lines.length <= Math.max(1, Math.floor(rows! * 0.9)));
+    assert.ok(
+      lines.every((line) => visibleWidth(line) <= width!),
+      `width ${width}`,
+    );
     const rendered = lines.map(stripVTControlCharacters).join("\n");
     for (const thread of [a, b]) {
       assert.ok(!rendered.includes(thread.id.slice(0, 4)), `no roster ID at ${width}`);
@@ -391,10 +554,17 @@ test("native hub: Unicode width, compact/wide resize, focus, draft switching, bu
         const [edge, left, right] = stripVTControlCharacters(lines[1]!).split("│");
         assert.equal(edge, "");
         assert.equal(left!.trim(), `● ${a.title}`, "roster starts immediately under outer frame");
-        assert.equal(right!.trim(), `● ${b.title} · ${b.model}`, "selected header belongs only to thread column");
+        assert.equal(
+          right!.trim(),
+          `● ${b.title} · ${b.model}`,
+          "selected header belongs only to thread column",
+        );
         assert.equal(visibleWidth(left!), Math.min(32, Math.floor((width! - 4) / 3)) + 2);
       } else {
-        assert.equal(stripVTControlCharacters(lines[1]!).split("│")[1]!.trim(), `● ${b.title} · ${b.model}`);
+        assert.equal(
+          stripVTControlCharacters(lines[1]!).split("│")[1]!.trim(),
+          `● ${b.title} · ${b.model}`,
+        );
         assert.ok(rendered.includes(`2/2 ${b.title}`));
       }
     }
@@ -405,7 +575,7 @@ test("native hub: Unicode width, compact/wide resize, focus, draft switching, bu
       assert.equal(rule.split("│")[roster ? 2 : 1]!.trim(), "─".repeat(rightWidth));
       if (roster) assert.ok(!rule.split("│")[1]!.includes("─"), "header rule never crosses roster");
     }
-    if (width! >= 16 && Math.floor(rows! * .9) >= 16) {
+    if (width! >= 16 && Math.floor(rows! * 0.9) >= 16) {
       const plain = lines.map(stripVTControlCharacters);
       const roster = width! >= 76 ? Math.min(32, Math.floor((width! - 4) / 3)) : 0;
       const divider = roster
@@ -416,7 +586,8 @@ test("native hub: Unicode width, compact/wide resize, focus, draft switching, bu
       assert.match(plain.at(-4)!, /Focus:/);
       assert.match(plain.at(-3)!, /Tab focus/);
       assert.match(plain.at(-2)!, /Enter send/);
-      if (width! >= 128) assert.match(plain.at(-2)!, /Ctrl\+Y Copy reply · Alt\+Y Copy conversation · Esc close/);
+      if (width! >= 128)
+        assert.match(plain.at(-2)!, /Ctrl\+Y Copy reply · Alt\+Y Copy conversation · Esc close/);
       assert.equal(plain.at(-1), `╰${"─".repeat(width! - 2)}╯`);
     }
     hub.invalidate();
@@ -455,7 +626,8 @@ test("hub: arrows and remapped selection keys preserve drafts, focus, scroll and
   assert.deepEqual(threads.list, [a, b, c]);
   assert.equal(threads.selected, c.id);
   const keys = new KeybindingsManager(TUI_KEYBINDINGS, {
-    "tui.select.up": "alt+k", "tui.select.down": "alt+j",
+    "tui.select.up": "alt+k",
+    "tui.select.down": "alt+j",
   });
   const tui = { terminal: { rows: 30, columns: 100 }, requestRender() {} } as unknown as TUI;
   const hub = createHub(threads, ctx, tui, keys, () => {});
@@ -478,7 +650,11 @@ test("hub: arrows and remapped selection keys preserve drafts, focus, scroll and
   assert.equal(a.draft, "first line\nsecond line!");
   assert.equal(threads.selected, a.id);
   // Give the real scroll view enough native transcript content to scroll.
-  a.manager.appendMessage({ role: "user", timestamp: 1, content: Array.from({ length: 60 }, (_, i) => `Line ${i}`).join("\n") });
+  a.manager.appendMessage({
+    role: "user",
+    timestamp: 1,
+    content: Array.from({ length: 60 }, (_, i) => `Line ${i}`).join("\n"),
+  });
   render();
   hub.handleInput!("\x1b[5~");
   const offset = a.offset;
@@ -509,7 +685,10 @@ test("hub: arrows and remapped selection keys preserve drafts, focus, scroll and
   assert.equal(threads.selected, a.id);
   hub.handleInput!("\x1b[1;5B");
   assert.equal(threads.selected, b.id);
-  assert.deepEqual([a.draft, b.draft, c.draft], ["first line\nsecond line!", "draft B!", "draft C"]);
+  assert.deepEqual(
+    [a.draft, b.draft, c.draft],
+    ["first line\nsecond line!", "draft B!", "draft C"],
+  );
   hub.dispose();
   const reopened = createHub(threads, ctx, tui, keys, () => {});
   assert.equal(threads.selected, b.id);
@@ -528,22 +707,43 @@ test("hub: native wheel bounds, streaming, retained per-thread reading and retur
   const threads = new Threads(() => {});
   const a = threads.create("older", ctx);
   const b = threads.create("newer", ctx);
-  for (const thread of [a, b]) thread.manager.appendMessage({ role: "user", timestamp: 1,
-    content: Array.from({ length: 80 }, (_, i) => `Reading line ${i}`).join("\n") });
+  for (const thread of [a, b])
+    thread.manager.appendMessage({
+      role: "user",
+      timestamp: 1,
+      content: Array.from({ length: 80 }, (_, i) => `Reading line ${i}`).join("\n"),
+    });
   const terminal = { rows: 30, columns: 100 };
   const tui = { terminal, requestRender() {} } as unknown as TUI;
   let hub = createHub(threads, ctx, tui, getKeybindings(), () => {});
   const render = () => hub.render(terminal.columns).map(stripVTControlCharacters);
-  const wheel = (x: number, y: number, wheelDelta: number) => hub.handleMouse!({
-    type: "wheel", button: "none", x, y, screenX: x + 8, screenY: y + 2,
-    width: terminal.columns, height: Math.floor(terminal.rows * .9),
-    shift: false, alt: false, ctrl: false, wheelDelta,
-  });
+  const wheel = (x: number, y: number, wheelDelta: number) =>
+    hub.handleMouse!({
+      type: "wheel",
+      button: "none",
+      x,
+      y,
+      screenX: x + 8,
+      screenY: y + 2,
+      width: terminal.columns,
+      height: Math.floor(terminal.rows * 0.9),
+      shift: false,
+      alt: false,
+      ctrl: false,
+      wheelDelta,
+    });
   let lines = render();
   const x = 2 + 32 + 3; // actual right-pane origin at width 100
   const y = 3; // outer frame, selected header, rule
   const liveOffset = b.offset;
-  for (const [px, py] of [[x, 1], [x, 2], [2, y], [99, y], [x, lines.findIndex(l => l.includes("Follow-up"))], [x, lines.length - 3]]) {
+  for (const [px, py] of [
+    [x, 1],
+    [x, 2],
+    [2, y],
+    [99, y],
+    [x, lines.findIndex((l) => l.includes("Follow-up"))],
+    [x, lines.length - 3],
+  ]) {
     assert.deepEqual(wheel(px!, py!, -3), { handled: true });
     assert.equal(b.offset, liveOffset, "header/rule/roster/frame/composer/footer cannot scroll");
     assert.equal(b.following, true);
@@ -552,10 +752,23 @@ test("hub: native wheel bounds, streaming, retained per-thread reading and retur
   assert.equal(b.offset, liveOffset - 3);
   assert.equal(b.following, false);
   const readingOffset = b.offset;
-  b.partial = { role: "assistant", content: [{ type: "text", text: "Streaming\nmore\noutput" }],
-    api: "openai-completions", provider: "synthetic", model: "offline", timestamp: 2,
-    stopReason: "stop", usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0,
-      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } } };
+  b.partial = {
+    role: "assistant",
+    content: [{ type: "text", text: "Streaming\nmore\noutput" }],
+    api: "openai-completions",
+    provider: "synthetic",
+    model: "offline",
+    timestamp: 2,
+    stopReason: "stop",
+    usage: {
+      input: 0,
+      output: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+      totalTokens: 0,
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+    },
+  };
   render();
   assert.equal(b.offset, readingOffset, "new streaming output preserves reading position");
   hub.handleInput!("\x1b[A");
@@ -564,23 +777,30 @@ test("hub: native wheel bounds, streaming, retained per-thread reading and retur
   render();
   wheel(x, y, -6);
   const aOffset = a.offset;
-  hub.handleInput!("\x1b[B"); render();
+  hub.handleInput!("\x1b[B");
+  render();
   assert.equal(b.offset, readingOffset);
   assert.equal(b.following, false);
   hub.dispose();
   hub = createHub(threads, ctx, tui, getKeybindings(), () => {});
   render();
   assert.equal(b.offset, readingOffset, "close/reopen retains reading position");
-  wheel(x, y, 10000); render();
+  wheel(x, y, 10000);
+  render();
   assert.equal(b.following, true, "wheel down to bottom resumes follow");
-  wheel(x, y, -3); render();
-  hub.handleInput!("\x1b[6~"); render();
+  wheel(x, y, -3);
+  render();
+  hub.handleInput!("\x1b[6~");
+  render();
   assert.equal(b.following, true, "PgDn reaches live bottom");
-  hub.handleInput!("\x1b[5~"); render();
+  hub.handleInput!("\x1b[5~");
+  render();
   assert.equal(b.following, false, "PgUp pauses follow");
-  hub.handleInput!("\x1b[1;5F"); render();
+  hub.handleInput!("\x1b[1;5F");
+  render();
   assert.equal(b.following, true, "Ctrl+End returns live");
-  hub.handleInput!("\x1b[A"); render();
+  hub.handleInput!("\x1b[A");
+  render();
   assert.equal(a.offset, aOffset);
   assert.equal(a.following, false);
   terminal.columns = 70;
@@ -596,7 +816,8 @@ test("hub: native wheel bounds, streaming, retained per-thread reading and retur
   const tinyOffset = a.offset;
   wheel(2, 4, -3);
   assert.equal(a.offset, tinyOffset, "tiny view has no transcript bounds");
-  terminal.rows = 30; render();
+  terminal.rows = 30;
+  render();
   hub.invalidate();
   wheel(2, 4, -3);
   assert.equal(a.offset, tinyOffset, "invalidated layout cannot use stale bounds");
@@ -625,18 +846,27 @@ test("SDK checkpoints restore creation order after a hub follow-up to an older t
   assert.match(JSON.stringify(calls.at(-1)!.context), /FOLLOWUP older/);
   calls.at(-1)!.finish("older answer");
   await until(() => a.status === "idle");
-  assert.deepEqual(threads.list.map((thread) => thread.id), [a.id, b.id]);
+  assert.deepEqual(
+    threads.list.map((thread) => thread.id),
+    [a.id, b.id],
+  );
   hub.dispose();
   await threads.dispose(false);
   const restored = new Threads(() => {});
   await restored.load(ctx);
-  assert.deepEqual(restored.list.map((thread) => thread.id), [a.id, b.id]);
+  assert.deepEqual(
+    restored.list.map((thread) => thread.id),
+    [a.id, b.id],
+  );
   assert.equal(restored.selected, b.id);
   assert.match(JSON.stringify(messages(restored.list[0]!)), /older answer/);
   // Older branches containing only creation checkpoints retain the same order.
   manager.branch(creationLeaf);
   await restored.load(ctx);
-  assert.deepEqual(restored.list.map((thread) => thread.id), [a.id, b.id]);
+  assert.deepEqual(
+    restored.list.map((thread) => thread.id),
+    [a.id, b.id],
+  );
   assert.doesNotMatch(JSON.stringify(messages(restored.list[0]!)), /FOLLOWUP older/);
   manager.branch(root);
   await restored.load(ctx);
@@ -648,9 +878,12 @@ test("hub: exhaustive colored circles replace status labels in roster and header
   const ctx = context();
   const threads = new Threads(() => {});
   const expected = [
-    ["starting", "◉", "accent"], ["running", "◉", "accent"],
-    ["idle", "●", "success"], ["failed", "●", "error"],
-    ["cancelled", "○", "muted"], ["interrupted", "○", "warning"],
+    ["starting", "◉", "accent"],
+    ["running", "◉", "accent"],
+    ["idle", "●", "success"],
+    ["failed", "●", "error"],
+    ["cancelled", "○", "muted"],
+    ["interrupted", "○", "warning"],
   ] as const;
   const items = expected.map(([status], index) => {
     const thread = threads.create(`Topic ${index}`, ctx);
@@ -665,9 +898,16 @@ test("hub: exhaustive colored circles replace status labels in roster and header
     const plain = lines.map(stripVTControlCharacters);
     assert.ok(lines[1]!.includes(theme.fg(color, glyph)), `${status} header color`);
     assert.ok(plain[1]!.includes(`${glyph} Topic ${index} · not started`));
-    const roster = lines.slice(1).find((line) => stripVTControlCharacters(line).split("│")[1]?.includes(`› ${glyph} Topic ${index}`));
+    const roster = lines
+      .slice(1)
+      .find((line) =>
+        stripVTControlCharacters(line).split("│")[1]?.includes(`› ${glyph} Topic ${index}`),
+      );
     assert.ok(roster?.includes(theme.fg(color, glyph)), `${status} roster color`);
-    assert.doesNotMatch(plain.join("\n"), /\b(starting|running|idle|failed|cancelled|interrupted)\b/);
+    assert.doesNotMatch(
+      plain.join("\n"),
+      /\b(starting|running|idle|failed|cancelled|interrupted)\b/,
+    );
   }
   hub.dispose();
   await threads.dispose(false);
@@ -686,27 +926,36 @@ test("hub: neutral panel matches reference paint in dark/light across SGR resets
     resetTheme.fg = (color, text) => theme.fg(color, text) + "\x1b[0m\x1b[49m";
     const resetContext = { ...ctx, ui: { ...ctx.ui, theme: resetTheme } };
     const panelBg = oklchColor(colorToOklch(theme.colors.customMessageBg).l, 0, 0);
+    // oxlint-disable-next-line no-control-regex -- Match the ANSI background reset.
     const restoreBg = theme.style("", { bg: panelBg }).replace(/\x1b\[49m$/, "");
     // Exact subagents paint baseline, including padding and both ANSI reset forms.
     const baseline = (text: string, width: number) => {
       const padded = text + " ".repeat(Math.max(0, width - visibleWidth(text)));
-      return padded.split("\x1b[0m")
+      return padded
+        .split("\x1b[0m")
         .map((part) => theme.style(part.replaceAll("\x1b[49m", restoreBg), { bg: panelBg }))
         .join("\x1b[0m");
     };
     const hub = createHub(threads, resetContext, tui, getKeybindings(), () => {});
     const lines = hub.render(100);
-    const frame = resetTheme.fg("border", "╭") + resetTheme.fg("accent", " BTW · 1 threads ") +
+    const frame =
+      resetTheme.fg("border", "╭") +
+      resetTheme.fg("accent", " BTW · 1 threads ") +
       resetTheme.fg("border", "─".repeat(81) + "╮");
     assert.equal(lines[0], baseline(frame, 100), `${name} exact reference frame`);
     assert.notEqual(lines[0], theme.bg("customMessageBg", frame));
     assert.ok(lines.every((line) => visibleWidth(line) === 100));
     assert.match(lines.map(stripVTControlCharacters).join("\n"), /Native user block/);
-    assert.ok(lines.some((line) => line.includes(theme.getBgAnsi("userMessageBg"))), "native user background retained");
+    assert.ok(
+      lines.some((line) => line.includes(theme.getBgAnsi("userMessageBg"))),
+      "native user background retained",
+    );
     hub.dispose();
   }
   initTheme("dark", false);
   await threads.dispose(false);
 });
 
-test.after(async () => { await rm(directory, { recursive: true, force: true }); });
+test.after(async () => {
+  await rm(directory, { recursive: true, force: true });
+});

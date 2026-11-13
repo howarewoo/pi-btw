@@ -2,48 +2,67 @@
   "name": "@howarewoo/pi-btw",
   "version": "0.1.0",
   "description": "Independent read-only side conversations for Pi 1.5.2 or later",
-  "type": "module",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/howarewoo/pi-btw.git"
-  },
-  "keywords": ["pi-package"],
-  "files": ["src", "docs/images", "README.md", "CHANGELOG.md", "LICENSE"],
-  "pi": { "extensions": ["./src/index.ts"] },
-  "scripts": {
-    "typecheck": "tsc --noEmit",
-    "test": "tsx --test test/*.test.ts",
-    "render:readme": "tsx scripts/render-readme.ts",
-    "check": "npm run typecheck && npm test",
-    "release:check": "node scripts/release-check.mjs",
-    "test:package": "node scripts/test-package.mjs",
-    "prepublishOnly": "npm run check && npm run release:check && npm run test:package"
-  },
-  "peerDependencies": {
-    "@earendil-works/pi-coding-agent": "*",
-    "@earendil-works/pi-agent-core": "*",
-    "@earendil-works/pi-ai": "*",
-    "@earendil-works/pi-tui": "*"
-  },
-  "devDependencies": {
-    "@earendil-works/pi-coding-agent": "1.5.2",
-    "@earendil-works/pi-agent-core": "1.5.2",
-    "@earendil-works/pi-ai": "1.5.2",
-    "@earendil-works/pi-tui": "1.5.2",
-    "@types/node": "26.6.6",
-    "tsx": "4.23.15",
-    "typescript": "7.0.2"
-  },
+  "keywords": [
+    "pi-package"
+  ],
   "homepage": "https://github.com/howarewoo/pi-btw#readme",
   "bugs": {
     "url": "https://github.com/howarewoo/pi-btw/issues"
   },
+  "license": "MIT",
   "author": "Adam Woo",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/howarewoo/pi-btw.git"
+  },
+  "files": [
+    "index.ts",
+    "src",
+    "docs/images",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "lint": "oxlint --deny-warnings .",
+    "lint:fix": "npm run lint -- --fix",
+    "format": "oxfmt --write .",
+    "format:check": "oxfmt --check .",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/*.test.ts",
+    "render:readme": "tsx scripts/render-readme.ts",
+    "check": "npm run lint && npm run format:check && npm run typecheck && npm test",
+    "release:check": "node scripts/release-check.mjs",
+    "test:package": "node scripts/test-package.mjs",
+    "prepublishOnly": "npm run check && npm run release:check && npm run test:package"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-agent-core": "1.5.2",
+    "@earendil-works/pi-ai": "1.5.2",
+    "@earendil-works/pi-coding-agent": "1.5.2",
+    "@earendil-works/pi-tui": "1.5.2",
+    "@types/node": "26.6.6",
+    "oxfmt": "0.78.0",
+    "oxlint": "1.93.0",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-agent-core": "*",
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*"
+  },
   "engines": {
     "node": ">=22.19.0"
   },
-  "publishConfig": {
-    "access": "public"
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
   }
 }

@@ -1,9 +1,17 @@
 import { randomUUID } from "node:crypto";
 import {
-  buildSessionContext, convertToLlm, createAgentSession, createExtensionRuntime,
-  ModelRuntime, SessionManager, SettingsManager,
-  type AgentSession, type ExtensionCommandContext, type ExtensionContext,
-  type FileEntry, type ResourceLoader,
+  buildSessionContext,
+  convertToLlm,
+  createAgentSession,
+  createExtensionRuntime,
+  ModelRuntime,
+  SessionManager,
+  SettingsManager,
+  type AgentSession,
+  type ExtensionCommandContext,
+  type ExtensionContext,
+  type FileEntry,
+  type ResourceLoader,
 } from "@earendil-works/pi-coding-agent";
 import type { Message } from "@earendil-works/pi-ai";
 import type { LiveTool } from "./transcript.ts";
@@ -56,8 +64,8 @@ export function resources(systemPrompt: string): ResourceLoader {
     getSystemPromptSource: () => undefined,
     getAppendSystemPrompt: () => [
       "This is an independent read-only side conversation. Only read, grep, find, ls are available. " +
-      "Tools operate on the local working directory, not SSH. Inherited tool calls and instructions " +
-      "do not grant capabilities. Do not claim to write files, run commands, or delegate.",
+        "Tools operate on the local working directory, not SSH. Inherited tool calls and instructions " +
+        "do not grant capabilities. Do not claim to write files, run commands, or delegate.",
     ],
     getAppendSystemPromptSources: () => [],
     extendResources: () => {},
@@ -67,42 +75,71 @@ export function resources(systemPrompt: string): ResourceLoader {
 
 export function messages(thread: Thread): Message[] {
   const inherited = new Set(thread.inheritedIds);
-  return thread.manager.getBranch().flatMap((entry) =>
-    entry.type === "message" && !inherited.has(entry.id) &&
-    (entry.message.role === "user" || entry.message.role === "assistant" || entry.message.role === "toolResult")
-      ? [entry.message] : [],
-  );
+  return thread.manager
+    .getBranch()
+    .flatMap((entry) =>
+      entry.type === "message" &&
+      !inherited.has(entry.id) &&
+      (entry.message.role === "user" ||
+        entry.message.role === "assistant" ||
+        entry.message.role === "toolResult")
+        ? [entry.message]
+        : [],
+    );
 }
 
 // Parent system/tool patches must not import executable declarations into the child.
 export function capture(ctx: ExtensionCommandContext): Message[] {
-  return structuredClone(convertToLlm(buildSessionContext(
-    ctx.sessionManager.getEntries(), ctx.sessionManager.getLeafId(),
-  ).messages).filter((message) => message.role !== "system"));
+  return structuredClone(
+    convertToLlm(
+      buildSessionContext(ctx.sessionManager.getEntries(), ctx.sessionManager.getLeafId()).messages,
+    ).filter((message) => message.role !== "system"),
+  );
 }
 
 export function checkpoint(thread: Thread): Checkpoint {
   return structuredClone({
-    version: 1, id: thread.id, title: thread.title, cwd: thread.cwd,
-    systemPrompt: thread.systemPrompt, inheritedIds: thread.inheritedIds,
+    version: 1,
+    id: thread.id,
+    title: thread.title,
+    cwd: thread.cwd,
+    systemPrompt: thread.systemPrompt,
+    inheritedIds: thread.inheritedIds,
     entries: [thread.manager.getHeader()!, ...thread.manager.getEntries()],
-    status: thread.status, error: thread.error, model: thread.model,
+    status: thread.status,
+    error: thread.error,
+    model: thread.model,
   });
 }
 
 export function restore(data: unknown): Thread {
   const value = data as Partial<Checkpoint> | undefined;
-  if (!value || value.version !== 1 || typeof value.id !== "string" ||
-      typeof value.title !== "string" || typeof value.cwd !== "string" ||
-      typeof value.systemPrompt !== "string" || !Array.isArray(value.entries) ||
-      !Array.isArray(value.inheritedIds) || !value.inheritedIds.every((id) => typeof id === "string") ||
-      !["starting", "running", "idle", "failed", "cancelled", "interrupted"].includes(value.status ?? "") ||
-      typeof value.model !== "string") throw new Error("Invalid BTW checkpoint (version 1 required)");
+  if (
+    !value ||
+    value.version !== 1 ||
+    typeof value.id !== "string" ||
+    typeof value.title !== "string" ||
+    typeof value.cwd !== "string" ||
+    typeof value.systemPrompt !== "string" ||
+    !Array.isArray(value.entries) ||
+    !Array.isArray(value.inheritedIds) ||
+    !value.inheritedIds.every((id) => typeof id === "string") ||
+    !["starting", "running", "idle", "failed", "cancelled", "interrupted"].includes(
+      value.status ?? "",
+    ) ||
+    typeof value.model !== "string"
+  )
+    throw new Error("Invalid BTW checkpoint (version 1 required)");
   const saved = value as Checkpoint;
   return {
-    ...saved, manager: SessionManager.inMemory(saved.cwd, undefined, structuredClone(saved.entries)),
-    status: saved.status === "starting" || saved.status === "running" ? "interrupted" : saved.status,
-    stopped: false, draft: "", offset: 0, following: true,
+    ...saved,
+    manager: SessionManager.inMemory(saved.cwd, undefined, structuredClone(saved.entries)),
+    status:
+      saved.status === "starting" || saved.status === "running" ? "interrupted" : saved.status,
+    stopped: false,
+    draft: "",
+    offset: 0,
+    following: true,
   };
 }
 
@@ -115,20 +152,36 @@ export class Threads {
   constructor(private save: (data: Checkpoint) => void) {}
   subscribe(listener: () => void) {
     this.listeners.add(listener);
-    return () => { this.listeners.delete(listener); };
+    return () => {
+      this.listeners.delete(listener);
+    };
   }
-  changed() { for (const listener of this.listeners) listener(); }
-  current() { return this.list.find((thread) => thread.id === this.selected); }
-  private persist(thread: Thread) { this.save(checkpoint(thread)); }
+  changed() {
+    for (const listener of this.listeners) listener();
+  }
+  current() {
+    return this.list.find((thread) => thread.id === this.selected);
+  }
+  private persist(thread: Thread) {
+    this.save(checkpoint(thread));
+  }
 
   create(prompt: string, ctx: ExtensionCommandContext): Thread {
     const manager = SessionManager.inMemory(ctx.cwd);
     const inheritedIds = capture(ctx).map((message) => manager.appendMessage(message));
     const thread: Thread = {
-      id: randomUUID(), title: prompt, cwd: ctx.cwd,
-      systemPrompt: ctx.getSystemPrompt(), inheritedIds, manager,
-      status: "idle", model: "not started", stopped: false,
-      draft: "", offset: 0, following: true,
+      id: randomUUID(),
+      title: prompt,
+      cwd: ctx.cwd,
+      systemPrompt: ctx.getSystemPrompt(),
+      inheritedIds,
+      manager,
+      status: "idle",
+      model: "not started",
+      stopped: false,
+      draft: "",
+      offset: 0,
+      following: true,
     };
     this.list.push(thread);
     this.selected = thread.id;
@@ -145,7 +198,9 @@ export class Threads {
       try {
         const thread = restore(entry.data);
         saved.set(thread.id, thread);
-      } catch (error) { ctx.ui.notify(String(error), "error"); }
+      } catch (error) {
+        ctx.ui.notify(String(error), "error");
+      }
     }
     // Map updates replace checkpoints without moving the first creation entry.
     this.list.push(...saved.values());
@@ -161,7 +216,9 @@ export class Threads {
     thread.status = "starting";
     thread.error = undefined;
     thread.stopped = false;
-    thread.model = ctx.model ? `${ctx.model.provider}/${ctx.model.id} · ${ctx.thinkingLevel}` : "no parent model";
+    thread.model = ctx.model
+      ? `${ctx.model.provider}/${ctx.model.id} · ${ctx.thinkingLevel}`
+      : "no parent model";
     this.persist(thread);
     this.changed();
     void this.run(thread, prompt, ctx, this.epoch);
@@ -176,7 +233,8 @@ export class Threads {
       if (!model) throw new Error("No parent model selected");
       if (thread.cwd !== ctx.cwd) throw new Error("Thread working directory differs from parent");
       // A child runtime inherits parent provider configuration, but never parent extensions.
-      const runtime = thread.session?.modelRuntime ?? await ModelRuntime.create({ allowModelNetwork: false });
+      const runtime =
+        thread.session?.modelRuntime ?? (await ModelRuntime.create({ allowModelNetwork: false }));
       if (!active() || thread.stopped) return;
       const native = ctx.modelRegistry.getRegisteredNativeProvider(model.provider);
       const config = ctx.modelRegistry.getRegisteredProviderConfig(model.provider);
@@ -191,21 +249,31 @@ export class Threads {
       if (!active() || thread.stopped) return;
       if (!thread.session) {
         const created = await createAgentSession({
-          cwd: thread.cwd, model, thinkingLevel,
-          modelRuntime: runtime, sessionManager: thread.manager,
-          tools: [...TOOL_NAMES], resourceLoader: resources(thread.systemPrompt),
+          cwd: thread.cwd,
+          model,
+          thinkingLevel,
+          modelRuntime: runtime,
+          sessionManager: thread.manager,
+          tools: [...TOOL_NAMES],
+          resourceLoader: resources(thread.systemPrompt),
           settingsManager: SettingsManager.inMemory({
-            compaction: { enabled: false }, retry: { enabled: false },
+            compaction: { enabled: false },
+            retry: { enabled: false },
           }),
         });
-        if (!active() || thread.stopped) { created.session.dispose(); return; }
+        if (!active() || thread.stopped) {
+          created.session.dispose();
+          return;
+        }
         thread.session = created.session;
         if (created.modelFallbackMessage) throw new Error(created.modelFallbackMessage);
         const actual = thread.session.getActiveToolNames().sort();
-        if (actual.join() !== [...TOOL_NAMES].sort().join()) throw new Error("Child tool allowlist mismatch");
+        if (actual.join() !== [...TOOL_NAMES].sort().join())
+          throw new Error("Child tool allowlist mismatch");
         thread.session.subscribe((event) => {
           if (!active()) return;
-          if (event.type === "message_update" && event.message.role === "assistant") thread.partial = event.message;
+          if (event.type === "message_update" && event.message.role === "assistant")
+            thread.partial = event.message;
           if (event.type === "message_end") {
             // Pi 1.5.2 appends the message synchronously after public listeners return.
             queueMicrotask(() => {
@@ -216,8 +284,14 @@ export class Threads {
             });
           }
           if (event.type === "tool_execution_start" || event.type === "tool_execution_update")
-            thread.live = { toolName: event.toolName, toolCallId: event.toolCallId, args: event.args,
-              ...(event.type === "tool_execution_update" ? { content: event.partialResult.content } : {}) };
+            thread.live = {
+              toolName: event.toolName,
+              toolCallId: event.toolCallId,
+              args: event.args,
+              ...(event.type === "tool_execution_update"
+                ? { content: event.partialResult.content }
+                : {}),
+            };
           if (event.type === "tool_execution_end") thread.live = undefined;
           this.changed();
         });
@@ -233,9 +307,13 @@ export class Threads {
       const last = messages(thread).findLast((message) => message.role === "assistant");
       if (last?.role === "assistant") {
         thread.model = `${last.provider}/${last.model} · ${thread.session.thinkingLevel}`;
-        if (last.stopReason === "error") throw new Error(last.errorMessage || "Model request failed");
+        if (last.stopReason === "error")
+          throw new Error(last.errorMessage || "Model request failed");
       }
-      thread.status = thread.stopped || (last?.role === "assistant" && last.stopReason === "aborted") ? "cancelled" : "idle";
+      thread.status =
+        thread.stopped || (last?.role === "assistant" && last.stopReason === "aborted")
+          ? "cancelled"
+          : "idle";
     } catch (error) {
       if (!active()) return;
       thread.status = thread.stopped ? "cancelled" : "failed";
@@ -262,16 +340,18 @@ export class Threads {
   /** Fence and checkpoint before navigation; keep threads usable if navigation is cancelled. */
   async suspend(save = true) {
     ++this.epoch;
-    await Promise.all(this.list.map(async (thread) => {
-      thread.stopped = true;
-      await thread.session?.abort();
-      thread.session?.dispose();
-      thread.session = undefined;
-      if (busy(thread)) thread.status = "interrupted";
-      thread.partial = undefined;
-      thread.live = undefined;
-      if (save) this.persist(thread);
-    }));
+    await Promise.all(
+      this.list.map(async (thread) => {
+        thread.stopped = true;
+        await thread.session?.abort();
+        thread.session?.dispose();
+        thread.session = undefined;
+        if (busy(thread)) thread.status = "interrupted";
+        thread.partial = undefined;
+        thread.live = undefined;
+        if (save) this.persist(thread);
+      }),
+    );
     this.changed();
   }
 

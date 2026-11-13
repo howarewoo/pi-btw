@@ -1,3 +1,4 @@
+/* oxlint-disable no-control-regex -- Terminal sanitization intentionally matches ANSI and control characters. */
 import {
   AssistantMessageComponent,
   UserMessageComponent,
