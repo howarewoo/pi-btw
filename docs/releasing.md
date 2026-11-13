@@ -1,9 +1,8 @@
 # Release preparation and publication
 
-`@howarewoo/pi-btw@0.1.0` is a **planned, unpublished** initial scoped release.
-This change prepares local checks and GitHub Actions; it does not publish, create tags,
-configure accounts, or install repository/environment/npm protections. Ordinary CI cannot
-publish. There is no automatic GitHub release creation.
+Tag releases publish `@howarewoo/pi-btw` to npm, then create a GitHub release using the
+matching version's changelog notes. Ordinary CI cannot publish. Local preparation does
+not create tags, configure accounts, or install repository/environment/npm protections.
 
 ## Owner prerequisites (not configured by these files)
 
@@ -116,11 +115,14 @@ Only after the exact release commit is merged to `main`, CI is green, and all ow
 are verified, a maintainer may deliberately create/push its matching immutable `vX.Y.Z`
 tag. **Do not push a tag as a test**: this workflow is publication-capable. It is tag-push
 only (no manual/branch dispatch), serializes releases, and rejects forks by exact repository
-identity. Its two jobs are:
+identity. Its three jobs are:
 
 1. **validation** (`contents: read`, no OIDC/environment) checks main ancestry and tag/version,
    installs with `npm ci --ignore-scripts`, runs checks, packs once, computes SHA-512, and
-   smoke-tests that exact tarball. It uploads only `release.tgz` plus identity/digest metadata.
+   smoke-tests that exact tarball. It uploads `release.tgz` plus identity/digest metadata,
+   and separately uploads the matching version's notes extracted from `CHANGELOG.md`.
+   Unreleased and older-version notes are excluded. To extract notes locally without publishing,
+   run `npm run release:check -- vX.Y.Z /path/to/release-notes.md` with the current package tag.
 2. **publish**, after validation and protected environment `npm` approval, has `contents: read`
    and **only here** `id-token: write`. It downloads validation's exact artifact ID from the
    current run, not a name from another run. The dependency-free helper is checked out from
@@ -130,9 +132,15 @@ identity. Its two jobs are:
    alone are not the publication gate. It installs no dependencies, runs no archive code,
    does not repack, and publishes that same file with `npm publish --access public --ignore-scripts`.
 
+3. **github-release**, only after validation and npm publication succeed, downloads the exact
+   notes artifact from validation and creates a published GitHub release titled `vX.Y.Z`.
+   `gh release create --verify-tag` requires the existing tag rather than creating one.
+   This is the only job with `contents: write`; it has no npm environment or OIDC permission.
+   Reruns leave an existing GitHub release and its notes unchanged. No package assets are attached.
+
 Existing npm versions are accepted only if their registry integrity exactly matches the checked
-bytes; other registry errors or mismatches fail closed. The job does not create a GitHub release
-or use `contents: write`. Artifact retention is seven days. If artifacts expire, rerun all jobs
+bytes; other registry errors or mismatches fail closed. The npm publish job retains
+`contents: read`. Artifact retention is seven days. If artifacts expire, rerun all jobs
 on the same immutable tag, never substitute another run's artifact. This separation limits
 credentials during checks but does not make a compromised validation job trustworthy: review
 the release commit and evidence before approving the environment.
@@ -141,7 +149,13 @@ For local integrity-only diagnostics, `node scripts/publish-package.mjs <artifac
 --verify-only` checks files against `RELEASE_TAG`, `RELEASE_COMMIT` and `RELEASE_INTEGRITY` without
 registry access or publication. This is not an authentication test.
 
-After an authorized release, verify npm version/integrity and OIDC provenance, then try a clean
+If GitHub release creation fails after npm publication, the npm version remains published.
+Rerun the failed GitHub-release job while the notes artifact is available; do not move the tag
+or bump the npm version solely to retry release creation. Changes to this workflow apply only
+to future tags containing them; rerunning an older tag still uses its original workflow.
+
+After an authorized release, verify the GitHub release's tag and notes, npm version/integrity
+and OIDC provenance, then try a clean
 Pi install and `/btw`. If publishing fails before publication, correct external prerequisites
 or rerun the same immutable tag. If bytes were published incorrectly, prepare a new patch and
 migration/deprecation guidance; never overwrite/move a tag or unpublish as the normal rollback.

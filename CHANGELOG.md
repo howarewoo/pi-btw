@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Create a GitHub release after successful npm publication, using only the matching version's changelog notes and preserving existing releases on reruns.
+
 ## 0.1.1 - 2026-11-13
 
 - Add Oxlint and Oxfmt with lint/fix and format/check scripts, enforce both in the existing CI and prepublish checks, and format the repository baseline. Exclude generated README images and the npm lockfile from formatting.

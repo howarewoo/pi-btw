@@ -41,10 +41,13 @@ for (const scenario of [
           scenario === "missing notes" ? "" : "- Existing release notes.",
           "",
           scenario === "duplicate release" ? `${heading}\n\n- Duplicate notes.\n` : "",
+          "## 0.0.0 - 2026-01-01\n\n- Older release notes.\n",
         ].join("\n"),
       );
       // Exercise both ordinary CI invocation and the tag-release invocation.
-      for (const args of [[], [scenario === "tag mismatch" ? "v0.0.0" : `v${pkg.version}`]]) {
+      const notesPath = join(root, "release-notes.md");
+      const tag = scenario === "tag mismatch" ? "v0.0.0" : `v${pkg.version}`;
+      for (const args of [[], [tag], [tag, notesPath]]) {
         const result = spawnSync(process.execPath, [script, ...args], {
           cwd: root,
           encoding: "utf8",
@@ -53,10 +56,14 @@ for (const scenario of [
         const valid =
           ["empty unreleased", "pending changes"].includes(scenario) ||
           (scenario === "tag mismatch" && args.length === 0);
-        if (valid) assert.equal(result.status, 0, result.stderr);
-        else {
+        if (valid) {
+          assert.equal(result.status, 0, result.stderr);
+          if (args.length === 2)
+            assert.equal(await readFile(notesPath, "utf8"), "- Existing release notes.\n");
+        } else {
           assert.equal(result.status, 1, result.stderr);
           assert.match(result.stderr, /AssertionError/);
+          await assert.rejects(readFile(notesPath), { code: "ENOENT" });
         }
       }
     } finally {

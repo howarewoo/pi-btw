@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 
 const pkg = JSON.parse(await readFile("package.json", "utf8"));
 const lock = JSON.parse(await readFile("package-lock.json", "utf8"));
@@ -24,4 +24,5 @@ assert.match(
 );
 assert.equal(sections.filter((s) => s[1].startsWith(`${pkg.version} - `)).length, 1);
 assert.match(sections[1][2], /^- \S/m, "Release notes must contain changes");
+if (process.argv[3]) await writeFile(process.argv[3], `${sections[1][2].trim()}\n`);
 console.log(`Release metadata verified: ${tag} (not proof of publication or authentication)`);
