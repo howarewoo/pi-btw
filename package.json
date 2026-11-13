@@ -4,11 +4,22 @@
   "description": "Independent read-only side conversations for Pi 1.5.2",
   "type": "module",
   "license": "MIT",
-  "repository": "https://github.com/howarewoo/pi-btw",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/howarewoo/pi-btw.git"
+  },
   "keywords": ["pi-package"],
   "files": ["src", "docs/images", "README.md", "CHANGELOG.md", "LICENSE"],
   "pi": { "extensions": ["./src/index.ts"] },
-  "scripts": { "typecheck": "tsc --noEmit", "test": "tsx --test test/*.test.ts", "render:readme": "tsx scripts/render-readme.ts" },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/*.test.ts",
+    "render:readme": "tsx scripts/render-readme.ts",
+    "check": "npm run typecheck && npm test",
+    "release:check": "node scripts/release-check.mjs",
+    "test:package": "node scripts/test-package.mjs",
+    "prepublishOnly": "npm run check && npm run release:check && npm run test:package"
+  },
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "*",
     "@earendil-works/pi-agent-core": "*",
@@ -23,5 +34,16 @@
     "@types/node": "26.6.6",
     "tsx": "4.23.15",
     "typescript": "7.0.2"
+  },
+  "homepage": "https://github.com/howarewoo/pi-btw#readme",
+  "bugs": {
+    "url": "https://github.com/howarewoo/pi-btw/issues"
+  },
+  "author": "Adam Woo",
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

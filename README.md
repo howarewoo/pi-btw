@@ -11,12 +11,18 @@ Not a terminal screenshot or live-provider evidence._
 
 ## Install
 
-Requires Pi 1.5.2 and a working model/provider login. Review extension source before installing:
+Requires Node.js >=22.19.0, Pi 1.5.2 and a working model/provider login. Review extension source before installing:
 extensions themselves run with Pi's operating-system permissions.
 
 ```sh
 pi install git:github.com/howarewoo/pi-btw
 ```
+
+**Future npm installation — unavailable now:** after a separately authorized first
+publication of `@howarewoo/pi-btw@0.1.0`, the planned command is
+`pi install npm:@howarewoo/pi-btw@0.1.0`. Do not use it yet; the package is unpublished.
+GitHub Actions release preparation does not establish npm account access or trusted-publisher
+configuration. Maintainers: see the [release guide](https://github.com/howarewoo/pi-btw/blob/main/docs/releasing.md).
 
 For local development:
 
@@ -138,7 +144,11 @@ hit provider context limits and fail visibly; start a fresh `/btw <prompt>` when
 `npm test` uses Node's test runner and the real Pi 1.5.2 SDK with a deterministic provider
 fixture. It checks tool declarations and execution/rejection, context isolation, concurrency,
 stop, restore/branch fencing, commands, copy filtering, and Unicode/narrow/wide hub rendering.
-`npm run typecheck` checks source and fixtures. `npm pack --dry-run` lists install contents.
+`npm run typecheck` checks source and fixtures. `npm run check` runs both gates.
+`npm run release:check` validates planned release metadata; `npm run test:package` packs,
+inspects and installs the actual tarball in a disposable offline consumer, then checks Pi
+1.5.2 loading and the noninteractive command boundary. These do not publish or verify npm
+account access. `npm pack --dry-run` only lists install contents.
 
 A small offline model fixture in `test/interactive-fixture.ts` is available for isolated
 manual TUI checks; it is not installed with the package. Automated SDK tests and an offline

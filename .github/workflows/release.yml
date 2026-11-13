@@ -1,0 +1,108 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  validation:
+    if: github.repository == 'howarewoo/pi-btw' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    outputs:
+      package-artifact: ${{ steps.package.outputs.artifact-id }}
+      integrity: ${{ steps.pack.outputs.integrity }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          registry-url: https://registry.npmjs.org
+          cache: npm
+      - name: Verify release is on main
+        run: git merge-base --is-ancestor HEAD origin/main
+      - run: npm ci --ignore-scripts
+      - name: Check release tag
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: npm run release:check -- "$RELEASE_TAG"
+      - run: npm run check
+      - name: Pack release
+        id: pack
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_COMMIT: ${{ github.sha }}
+        run: |
+          mkdir "$RUNNER_TEMP/release-package"
+          npm pack --json --pack-destination "$RUNNER_TEMP" > "$RUNNER_TEMP/pack.json"
+          node --input-type=module -e '
+            import assert from "node:assert/strict";
+            import fs from "node:fs";
+            import path from "node:path";
+            import { createHash } from "node:crypto";
+            const [packed] = JSON.parse(fs.readFileSync(path.join(process.env.RUNNER_TEMP, "pack.json"), "utf8"));
+            assert.equal(path.basename(packed.filename), packed.filename);
+            const tarball = path.join(process.env.RUNNER_TEMP, "release-package/release.tgz");
+            fs.renameSync(path.join(process.env.RUNNER_TEMP, packed.filename), tarball);
+            const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+            const integrity = "sha512-" + createHash("sha512").update(fs.readFileSync(tarball)).digest("base64");
+            const metadata = { name: pkg.name, version: pkg.version, tag: process.env.RELEASE_TAG, commit: process.env.RELEASE_COMMIT, tarball: "release.tgz", integrity };
+            fs.writeFileSync(path.join(process.env.RUNNER_TEMP, "release-package/metadata.json"), JSON.stringify(metadata));
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, "integrity=" + integrity + "\n");
+          '
+      - name: Smoke-test the release tarball
+        run: npm run test:package -- "$RUNNER_TEMP/release-package/release.tgz"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        id: package
+        with:
+          name: release-package-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/release-package/
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/publish-package.mjs
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          registry-url: https://registry.npmjs.org
+      - name: Require selected artifact
+        env:
+          ARTIFACT_ID: ${{ needs.validation.outputs.package-artifact }}
+        run: test -n "$ARTIFACT_ID"
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ needs.validation.outputs.package-artifact }}
+          path: ${{ runner.temp }}/release-package
+          merge-multiple: true
+      - name: Verify transferred bytes and publish through npm trusted publishing
+        working-directory: ${{ runner.temp }}
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_COMMIT: ${{ github.sha }}
+          RELEASE_INTEGRITY: ${{ needs.validation.outputs.integrity }}
+        run: node "$GITHUB_WORKSPACE/scripts/publish-package.mjs" "$RUNNER_TEMP/release-package"
