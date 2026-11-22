@@ -242,8 +242,8 @@ lint fixes and `npm run format` to apply Oxfmt formatting. Formatting skips the 
 lockfile and the managed Pullfrog workflow.
 
 `npm run release:check` validates release metadata; `npm run test:package` packs, inspects and
-installs the actual tarball in a disposable offline consumer, then checks pinned Pi loading and
-the noninteractive command boundary. These do not publish or verify npm account access.
+installs the actual tarball in a disposable consumer (cache-first, isolated npm config), then
+checks pinned Pi loading and the noninteractive command boundary. These do not publish or verify npm account access.
 `npm pack --dry-run` only lists install contents. Maintainers: see the
 [release guide](https://github.com/howarewoo/pi-btw/blob/main/docs/releases.md).
 

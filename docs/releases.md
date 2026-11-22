@@ -147,7 +147,7 @@ commit is listed instead of its branch commits, and rebase merges may produce mu
    To extract notes locally without publishing, run
    `npm run release:check -- vX.Y.Z /path/to/release-notes.md` with the current package tag.
 
-   Package smoke testing inspects the real archive allowlist, installs it offline in a
+   Package smoke testing inspects the real archive allowlist, installs it cache-first in a
    disposable directory without lifecycle scripts, dev dependencies or host peers, checks the
    packed manifest, README links/images, that only the locked production tree installs and that
    no host packages are duplicated, then loads and registers `/btw` through the pinned Pi
