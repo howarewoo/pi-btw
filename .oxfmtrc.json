@@ -1,4 +1,5 @@
 {
   "$schema": "./node_modules/oxfmt/configuration_schema.json",
-  "ignorePatterns": ["package-lock.json", "docs/images/**"]
+  "ignorePatterns": ["package-lock.json", ".github/workflows/pullfrog.yml"],
+  "sortImports": false
 }

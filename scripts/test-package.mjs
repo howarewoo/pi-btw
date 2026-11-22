@@ -75,7 +75,11 @@ try {
       "utf8",
     ),
   );
-  assert.equal(host.version, "1.5.2", "Smoke test must exercise the pinned host");
+  assert.equal(
+    host.version,
+    expected.devDependencies["@earendil-works/pi-coding-agent"],
+    "Smoke test must exercise the pinned host",
+  );
   const loader = new DefaultResourceLoader({
     cwd: root,
     agentDir: join(root, "agent"),
