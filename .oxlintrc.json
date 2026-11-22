@@ -4,8 +4,12 @@
   "categories": {
     "correctness": "error"
   },
-  "rules": {},
-  "env": {
-    "builtin": true
-  }
+  "overrides": [
+    {
+      "files": ["test/**/*.ts"],
+      "rules": {
+        "no-control-regex": "off"
+      }
+    }
+  ]
 }

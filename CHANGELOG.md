@@ -1,21 +1,21 @@
 # Changelog
 
-## Unreleased
+## [Unreleased]
 
 - Add npm version and monthly download badges to the README.
 
-## 0.1.2 - 2026-11-13
+## [0.1.2]
 
 - Clarify the scoped package identity and concurrent read-only side conversation workflow in the README and npm metadata; add a two-thread quick start and move development details below user guidance.
 - Create a GitHub release after successful npm publication, using only the matching version's changelog notes and preserving existing releases on reruns.
 
-## 0.1.1 - 2026-11-13
+## [0.1.1]
 
 - Add Oxlint and Oxfmt with lint/fix and format/check scripts, enforce both in the existing CI and prepublish checks, and format the repository baseline. Exclude generated README images and the npm lockfile from formatting.
 - Load the extension through a root-level entry point so npm installs appear as `@howarewoo/pi-btw` in Pi's startup list, without the `:src` suffix.
 - Allow pending Unreleased notes during release metadata checks while continuing to validate the current version's release notes, tag, and package metadata.
 
-## 0.1.0 - 2026-11-12
+## [0.1.0]
 
 - Clarify Pi 1.5.2 as the minimum supported version rather than an exact-version requirement; allow newer hosts while distinguishing the tested baseline from unverified later versions.
 

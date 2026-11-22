@@ -149,7 +149,10 @@ export class Threads {
   selected?: string;
   private epoch = 0;
   private listeners = new Set<() => void>();
-  constructor(private save: (data: Checkpoint) => void) {}
+  private save: (data: Checkpoint) => void;
+  constructor(save: (data: Checkpoint) => void) {
+    this.save = save;
+  }
   subscribe(listener: () => void) {
     this.listeners.add(listener);
     return () => {
@@ -275,7 +278,7 @@ export class Threads {
           if (event.type === "message_update" && event.message.role === "assistant")
             thread.partial = event.message;
           if (event.type === "message_end") {
-            // Pi 1.5.2 appends the message synchronously after public listeners return.
+            // Pi appends the message synchronously after public listeners return.
             queueMicrotask(() => {
               if (!active()) return;
               thread.partial = undefined;

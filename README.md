@@ -8,8 +8,7 @@ Switch between threads in one hub, ask follow-up questions while the main agent 
 and restore saved thread history with the parent session. Side conversations use a
 snapshot of the main conversation and stay out of its future model context.
 
-Requires **Pi 1.5.2 or later**. Available on npm as
-[`@howarewoo/pi-btw`](https://www.npmjs.com/package/@howarewoo/pi-btw).
+[Install](#installation) · [Quick start](#quick-start) · [Use the hub](#use-the-hub) · [Read-only boundary](#context-and-read-only-boundary) · [Documentation](#documentation)
 
 ![Synthetic native-renderer illustration of the wide BTW hub: four independent threads with green idle, active running, warning hollow interrupted and muted hollow cancelled circles on a neutral gray panel beside a read-only conversation, read tool output, reply and follow-up draft.](docs/images/btw-hub.svg)
 
@@ -17,14 +16,22 @@ _Two-panel BTW hub with colored status circles and a neutral gray panel, rendere
 the production UI with synthetic in-memory data. Not a terminal screenshot or
 live-provider evidence._
 
-## Install
+## Installation
 
-Requires Node.js >=22.19.0, Pi >=1.5.2 and a working model/provider login. Review extension source before installing:
-extensions themselves run with Pi's operating-system permissions.
+Requires **Node 22.19+**, **Pi 1.5.2 or newer** and a working model/provider login.
+Tested host: Pi 1.6.0; newer versions are allowed, not guaranteed compatible. Review
+extension source before installing: extensions themselves run with Pi's operating-system
+permissions.
+
+Install from npm:
 
 ```sh
 pi install npm:@howarewoo/pi-btw
 ```
+
+Alternatively, install from Git with `pi install git:github.com/howarewoo/pi-btw`.
+Use only one source: when switching between npm, Git or a local checkout, remove the
+previously registered source first so Pi does not load the extension twice.
 
 Restart Pi, or run `/reload` in an existing idle session after installing.
 
@@ -164,46 +171,88 @@ Drafts and viewport positions are runtime-only and are not restored after restar
 No automatic compaction or retry is enabled in child sessions. Very long side threads may
 hit provider context limits and fail visibly; start a fresh `/btw <prompt>` when needed.
 
-## Development
+## Updates and rollback
+
+Let side requests finish before updating, then restart Pi or run `/reload`. Reload and
+shutdown stop active side requests; unfinished turns restore as interrupted and are not
+replayed. There is no extension-owned auto-updater.
+
+```sh
+# Update an unpinned npm installation
+pi update npm:@howarewoo/pi-btw
+
+# Or update all installed extension packages
+pi update --extensions
+```
+
+Plain `pi update` updates Pi itself, not installed extension packages. For a Git installation,
+use `pi update git:github.com/howarewoo/pi-btw`, matching the source you registered.
+An unpinned Git source tracks the repository's default branch, including unreleased commits.
+
+For a reproducible npm installation or rollback, select an exact published version:
+
+```sh
+pi install npm:@howarewoo/pi-btw@0.1.2
+```
+
+For Git, select a published tag, for example `pi install git:github.com/howarewoo/pi-btw@v0.1.2`.
+Exact npm versions and Git tags stay pinned; updating does not advance them to the next release.
+Install a different version explicitly to change the pin.
+
+[CHANGELOG.md](CHANGELOG.md) lists user-facing changes and migrations. Pi shows new package
+changelog entries on the next fresh launch after a version increase.
+
+## Documentation
+
+- [Release guide](https://github.com/howarewoo/pi-btw/blob/main/docs/releases.md): versioning,
+  compatibility policy, publishing and recovery.
+- [Changelog](CHANGELOG.md): user-facing changes and migrations.
+- [Security policy](https://github.com/howarewoo/pi-btw/blob/main/SECURITY.md): vulnerability
+  reporting and trust boundaries.
+
+## Local development
+
+From a source checkout:
 
 ```sh
 git clone https://github.com/howarewoo/pi-btw.git
 cd pi-btw
-npm ci
-npm run check
-pi install .
+npm ci --ignore-scripts
+npm run lint
+npm run format:check
+npm run typecheck
+npm test
+npm pack --dry-run
+npm run test:package
 ```
 
-The package loads only the root `index.ts` entry point; source modules, README and its
-images, changelog, and license are included in its install contents. No build step is
-required. For a one-invocation trial without changing package settings, use
-`pi -e ./index.ts` from the checkout.
+`npm run check` runs lint, formatting, typechecking and tests; CI and prepublish use the same
+checks. Tests run with Node's native TypeScript support (`node --test`); no build step or
+TypeScript loader is required. Run `pi install .` to install the checkout, or `pi -e ./index.ts`
+for a one-invocation trial without changing package settings. The package loads only the root
+`index.ts` entry point; source modules, README and its images, changelog, and license are
+included in its install contents.
 
-Maintainers: see the [release guide](https://github.com/howarewoo/pi-btw/blob/main/docs/releasing.md).
+`npm test` uses the real pinned Pi 1.6.0 SDK with a deterministic provider fixture. It checks
+tool declarations and execution/rejection, context isolation, concurrency, stop, restore/branch
+fencing, commands, copy filtering, Unicode/narrow/wide hub rendering, release metadata,
+changelog generation and publication safeguards. `npm run typecheck` checks source and fixtures.
+Oxlint checks correctness rules; warnings fail the lint command. Run `npm run lint:fix` for safe
+lint fixes and `npm run format` to apply Oxfmt formatting. Formatting skips the generated
+lockfile and the managed Pullfrog workflow.
 
-## Verification and limits
-
-`npm test` uses Node's test runner and the real Pi 1.5.2 SDK with a deterministic provider
-fixture. It checks tool declarations and execution/rejection, context isolation, concurrency,
-stop, restore/branch fencing, commands, copy filtering, and Unicode/narrow/wide hub rendering.
-`npm run typecheck` checks source and fixtures. `npm run lint` runs Oxlint with warnings
-treated as failures; `npm run lint:fix` applies safe lint fixes. `npm run format` formats
-the repository with Oxfmt, and `npm run format:check` checks formatting without writing.
-Generated README images and `package-lock.json` are excluded from formatting.
-`npm run check` runs lint, formatting, typechecking, and tests; CI and prepublish use
-the same checks.
-`npm run release:check` validates planned release metadata; `npm run test:package` packs,
-inspects and installs the actual tarball in a disposable offline consumer, then checks Pi
-1.5.2 loading and the noninteractive command boundary. These do not publish or verify npm
-account access. `npm pack --dry-run` only lists install contents.
+`npm run release:check` validates release metadata; `npm run test:package` packs, inspects and
+installs the actual tarball in a disposable consumer (cache-first, isolated npm config), then
+checks pinned Pi loading and the noninteractive command boundary. These do not publish or verify npm account access.
+`npm pack --dry-run` only lists install contents. Maintainers: see the
+[release guide](https://github.com/howarewoo/pi-btw/blob/main/docs/releases.md).
 
 A small offline model fixture in `test/interactive-fixture.ts` is available for isolated
 manual TUI checks; it is not installed with the package. Automated SDK tests and an offline
 TUI smoke do not establish live-provider compatibility or every terminal/clipboard backend.
-Pi 1.5.2 is the minimum supported version and the automated-test baseline, not an
-exact-version requirement. Newer Pi versions are allowed; you do not need to stay on
-1.5.2 to use this extension. Later versions have not yet been verified, and future
-breaking SDK changes may require an extension update.
+Pi 1.5.2 is the minimum supported version and Pi 1.6.0 the tested host, not an exact-version
+requirement. Newer Pi versions are allowed; later versions have not yet been verified, and
+future breaking SDK changes may require an extension update.
 
 ### Regenerate README illustrations
 
