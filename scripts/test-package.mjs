@@ -2,14 +2,17 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve, relative } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
+import config from "./test-package.config.mjs";
 
-// Adapted from pi-extended-subagents: exercise Pi's actual package loader, not a source import.
-const root = await mkdtemp(join(tmpdir(), "pi-btw-packed-"));
+// Install the actual tarball offline, without host peers, and load it through Pi's package
+// loader. Per-repo values and optional behavior checks live in test-package.config.mjs.
+const expected = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
+const lock = JSON.parse(await readFile(new URL("../package-lock.json", import.meta.url), "utf8"));
+const root = await mkdtemp(join(tmpdir(), `${expected.name.split("/").pop()}-packed-`));
 const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
 process.env.PI_CODING_AGENT_DIR = join(root, "agent");
 try {
-  const expected = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
   let tarball = process.argv[2] && resolve(process.argv[2]);
   if (!tarball) {
     const [packed] = JSON.parse(
@@ -17,15 +20,11 @@ try {
     );
     tarball = join(root, packed.filename);
   }
-  // Inspect real tar headers before installation. Only deliberately shipped source/docs are allowed.
+  // Inspect real tar headers before installation. Only deliberately shipped files are allowed.
   const entries = execFileSync("tar", ["-tzf", tarball], { encoding: "utf8" }).trim().split("\n");
   for (const entry of entries) {
     assert.ok(!entry.split("/").includes(".."), `Unsafe tar path: ${entry}`);
-    assert.match(
-      entry,
-      /^package\/(?:index\.ts|src\/[\w-]+\.ts|docs\/images\/[\w-]+\.svg|package\.json|README\.md|CHANGELOG\.md|LICENSE)$/,
-      `Unexpected packed file: ${entry}`,
-    );
+    assert.match(entry, config.files, `Unexpected packed file: ${entry}`);
   }
   await writeFile(join(root, "package.json"), '{"private":true,"type":"module"}\n');
   await writeFile(join(root, "npmrc"), "");
@@ -49,24 +48,48 @@ try {
   const pkg = JSON.parse(await readFile(join(installed, "package.json"), "utf8"));
   assert.deepEqual(pkg, expected);
   assert.ok(
-    !pkg.dependencies && !pkg.bundledDependencies && !pkg.bundleDependencies,
-    "Pi supplies all runtime dependencies",
+    !pkg.bundledDependencies && !pkg.bundleDependencies,
+    "Packages must not bundle dependencies",
   );
   assert.deepEqual(pkg.pi.extensions, ["./index.ts"]);
-  // No host SDK duplicates (or other packages) may appear in the isolated consumer.
+
+  // Only the package and its locked production dependencies install; Pi supplies host peers.
+  const consumer = JSON.parse(
+    await readFile(join(root, "node_modules", ".package-lock.json"), "utf8"),
+  );
+  const production = Object.entries(lock.packages)
+    .filter(([path, entry]) => path && !entry.dev && !entry.devOptional)
+    .map(([path]) => path);
+  assert.deepEqual(
+    Object.keys(consumer.packages).sort(),
+    [`node_modules/${pkg.name}`, ...production].sort(),
+    "Installed packages must match the locked production tree",
+  );
+  for (const peer of Object.keys(pkg.peerDependencies ?? {}))
+    assert.ok(
+      !Object.keys(consumer.packages).some((path) => path.endsWith(`node_modules/${peer}`)),
+      `Host package duplicated: ${peer}`,
+    );
+  const topLevel = new Set(Object.keys(consumer.packages).map((path) => path.split("/")[1]));
   assert.deepEqual((await readdir(join(root, "node_modules"))).sort(), [
     ".package-lock.json",
-    "@howarewoo",
+    ...[...topLevel].sort(),
   ]);
-  for (const file of ["README.md", "CHANGELOG.md", "LICENSE"])
-    assert.ok((await readFile(join(installed, file), "utf8")).trim(), `Missing ${file}`);
+
+  for (const file of config.requiredFiles)
+    assert.ok(
+      (await readFile(join(installed, file), "utf8").catch(() => "")).trim(),
+      `Missing ${file}`,
+    );
   const readme = await readFile(join(installed, "README.md"), "utf8");
-  for (const [, target] of readme.matchAll(/!?\[[^\]]*\]\(([^)]+)\)/g)) {
+  for (const [, target] of readme.matchAll(/!?\[[^\]]*\]\(([^)\s]+)\)/g)) {
     if (/^(?:https?:|#)/.test(target)) continue;
     const path = resolve(dirname(join(installed, "README.md")), target.split("#")[0]);
     assert.ok(!relative(installed, path).startsWith(".."), `Escaping README link: ${target}`);
-    assert.ok((await readFile(path)).length, `Broken packed README link: ${target}`);
+    const bytes = await readFile(path).catch(() => Buffer.alloc(0));
+    assert.ok(bytes.length, `Broken packed README link: ${target}`);
   }
+
   const { DefaultResourceLoader, SettingsManager } =
     await import("@earendil-works/pi-coding-agent");
   const host = JSON.parse(
@@ -95,6 +118,9 @@ try {
   assert.equal(loaded.extensions.length, 1);
   const [extension] = loaded.extensions;
   assert.equal(extension.path, join(installed, "index.ts"));
+  assert.deepEqual([...extension.tools.keys()].sort(), [...config.tools].sort());
+  assert.deepEqual([...extension.commands.keys()].sort(), [...config.commands].sort());
+
   // Exercise the pinned host's real startup-label renderer with npm source metadata.
   // Import by file URL because this internal renderer is not a public SDK export.
   const { InteractiveMode } = await import(
@@ -114,16 +140,10 @@ try {
     [pkg.name],
     "npm startup label must not include an entry-point suffix",
   );
-  assert.deepEqual([...extension.commands.keys()], ["btw"]);
-  assert.equal(extension.tools.size, 0);
-  // Execute a representative command boundary without a model/provider or interactive TUI.
-  const notices = [];
-  await extension.commands
-    .get("btw")
-    .handler("", { mode: "rpc", ui: { notify: (...args) => notices.push(args) } });
-  assert.deepEqual(notices, [["/btw requires interactive Pi mode", "error"]]);
+
+  await config.verify?.({ extension, pkg, installed, root, host });
   console.log(
-    `Packed ${pkg.name}@${pkg.version}: ${entries.length} allowed files; README links resolve; isolated Pi ${host.version} load and /btw boundary passed. Tarball: ${tarball}`,
+    `Packed ${pkg.name}@${pkg.version}: ${entries.length} allowed files; README links resolve; isolated Pi ${host.version} load passed. Tarball: ${tarball}`,
   );
 } finally {
   if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;

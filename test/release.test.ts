@@ -10,17 +10,48 @@ import { fileURLToPath } from "node:url";
 const script = fileURLToPath(new URL("../scripts/release-notes.mjs", import.meta.url));
 const publishScript = fileURLToPath(new URL("../scripts/publish-package.mjs", import.meta.url));
 
-for (const scenario of ["valid", "tag mismatch", "lock mismatch", "missing notes", "prerelease"])
+const releaseScenarios = [
+  "valid",
+  "tag mismatch",
+  "lock mismatch",
+  "lock name mismatch",
+  "lock dependency mismatch",
+  "restricted access",
+  "missing notes",
+  "prerelease",
+] as const;
+for (const scenario of releaseScenarios)
   test(`release metadata: ${scenario}`, async () => {
     const root = await mkdtemp(join(tmpdir(), "pi-btw-release-"));
     try {
       const version = scenario === "prerelease" ? "0.2.0-beta.1" : "0.2.0";
-      await writeFile(join(root, "package.json"), JSON.stringify({ version, license: "MIT" }));
+      const manifest = {
+        name: "@howarewoo/pi-example",
+        version,
+        license: "MIT",
+        publishConfig: { access: scenario === "restricted access" ? "restricted" : "public" },
+        engines: { node: ">=22.19.0" },
+        dependencies: { "runtime-example": "1.0.0" },
+        peerDependencies: { "host-example": "*" },
+        devDependencies: { "host-example": "1.0.0" },
+      };
+      const { license: _license, publishConfig: _publish, ...lockRoot } = manifest;
+      await writeFile(join(root, "package.json"), JSON.stringify(manifest));
       await writeFile(
         join(root, "package-lock.json"),
         JSON.stringify({
+          name: scenario === "lock name mismatch" ? "@howarewoo/other" : manifest.name,
           version,
-          packages: { "": { version: scenario === "lock mismatch" ? "0.1.0" : version } },
+          packages: {
+            "": {
+              ...lockRoot,
+              version: scenario === "lock mismatch" ? "0.1.0" : version,
+              dependencies:
+                scenario === "lock dependency mismatch"
+                  ? { "runtime-example": "2.0.0" }
+                  : manifest.dependencies,
+            },
+          },
         }),
       );
       await writeFile(

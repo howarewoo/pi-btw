@@ -141,16 +141,19 @@ commit is listed instead of its branch commits, and rebase merges may produce mu
    npm run test:package
    ```
 
-   `npm run release:check` requires a stable version, matching tag, manifest and lockfile
-   versions, and a single nonempty `## [x.y.z]` changelog section for the current version.
+   `npm run release:check` requires a stable version, a matching tag, a lockfile whose name,
+   version, engines and dependency sets match the manifest, public `publishConfig.access`, and
+   a single nonempty `## [x.y.z]` changelog section for the current version.
    To extract notes locally without publishing, run
    `npm run release:check -- vX.Y.Z /path/to/release-notes.md` with the current package tag.
 
    Package smoke testing inspects the real archive allowlist, installs it offline in a
    disposable directory without lifecycle scripts, dev dependencies or host peers, checks the
-   packed manifest, README links/images and that no host packages are duplicated, then loads and
-   registers `/btw` through the pinned Pi resource loader. It also checks the npm startup label
-   and the noninteractive rejection boundary without a provider call. These are not
+   packed manifest, README links/images, that only the locked production tree installs and that
+   no host packages are duplicated, then loads and registers `/btw` through the pinned Pi
+   resource loader. It also checks the npm startup label and, through the per-repo hook in
+   `scripts/test-package.config.mjs`, the noninteractive rejection boundary without a provider
+   call. These are not
    live-provider or TUI tests. To retain and inspect the **same** tarball used by the test:
 
    ```sh
