@@ -239,7 +239,7 @@ fencing, commands, copy filtering, Unicode/narrow/wide hub rendering, release me
 changelog generation and publication safeguards. `npm run typecheck` checks source and fixtures.
 Oxlint checks correctness rules; warnings fail the lint command. Run `npm run lint:fix` for safe
 lint fixes and `npm run format` to apply Oxfmt formatting. Formatting skips the generated
-lockfile and the managed Pullfrog workflow.
+lockfile.
 
 `npm run release:check` validates release metadata; `npm run test:package` packs, inspects and
 installs the actual tarball in a disposable consumer (cache-first, isolated npm config), then
