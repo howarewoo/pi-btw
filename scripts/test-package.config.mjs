@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 export default {
   // Every packed tar entry must match; anything else fails before installation.
   files:
-    /^package\/(?:index\.ts|src\/[\w-]+\.ts|docs\/images\/[\w-]+\.svg|package\.json|README\.md|CHANGELOG\.md|LICENSE)$/,
+    /^package\/(?:index\.ts|src\/[\w-]+\.ts|docs\/[\w-]+\.md|docs\/images\/[\w-]+\.svg|package\.json|README\.md|CHANGELOG\.md|LICENSE)$/,
   requiredFiles: ["README.md", "CHANGELOG.md", "LICENSE"],
   tools: [],
   commands: ["btw"],
