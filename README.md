@@ -1,14 +1,9 @@
-# @howarewoo/pi-btw — Pi extension for concurrent side conversations
+# @howarewoo/pi-btw
 
 [![npm version](https://img.shields.io/npm/v/%40howarewoo%2Fpi-btw)](https://www.npmjs.com/package/@howarewoo/pi-btw)
 [![npm downloads](https://img.shields.io/npm/dm/%40howarewoo%2Fpi-btw)](https://www.npmjs.com/package/@howarewoo/pi-btw)
 
-Run several independent, read-only `/btw` conversations alongside the **Pi coding agent**.
-Switch between threads in one hub, ask follow-up questions while the main agent works,
-and restore saved thread history with the parent session. Side conversations use a
-snapshot of the main conversation and stay out of its future model context.
-
-[Install](#installation) · [Quick start](#quick-start) · [Use the hub](#use-the-hub) · [Read-only boundary](#context-and-read-only-boundary) · [Documentation](#documentation)
+A [Pi coding agent](https://pi.dev) extension for asking read-only side questions with `/btw` while the main agent keeps working, each in its own thread with saved history.
 
 ![Synthetic native-renderer illustration of the wide BTW hub: four independent threads with green idle, active running, warning hollow interrupted and muted hollow cancelled circles on a neutral gray panel beside a read-only conversation, read tool output, reply and follow-up draft.](docs/images/btw-hub.svg)
 
@@ -16,35 +11,36 @@ _Two-panel BTW hub with colored status circles and a neutral gray panel, rendere
 the production UI with synthetic in-memory data. Not a terminal screenshot or
 live-provider evidence._
 
-## Installation
+## Why use it
 
-Requires **Node 22.19+**, **Pi 1.5.2 or newer** and a working model/provider login.
-Tested host: Pi 1.6.0; newer versions are allowed, not guaranteed compatible. Review
-extension source before installing: extensions themselves run with Pi's operating-system
-permissions.
+Use it to look something up without interrupting the main agent or adding to its context:
 
-Install from npm:
+- Every `/btw <prompt>` starts a new thread. Threads run at the same time, and closing the hub does not stop them.
+- A thread starts from a one-time snapshot of the main conversation and stays out of the main agent's future model context.
+- Threads can call only `read`, `grep`, `find` and `ls`, enforced by the child session's tool allowlist rather than its prompt. See [the read-only boundary](docs/read-only-boundary.md).
+- Each turn uses the main session's current model and thinking level. A provider or login failure shows on the thread instead of switching to another model.
+- Threads are saved in the parent session file. A request still running at reload comes back as interrupted and is never resent on its own. See [persistence](docs/persistence.md).
+- The [hub](docs/hub.md) shows each thread with Pi's own chat and tool renderers, and has keys to switch threads, stop one request or copy a reply.
+
+Side threads cannot edit files, run shell commands, or call subagents or MCP tools. They are not sandboxed either: the four tools can read any local path Pi can, including outside the project, so don't point them at secrets. For side work that changes files, use the main session or a subagent extension such as [pi-subagents](https://github.com/howarewoo/pi-subagents).
+
+## Project status
+
+Actively maintained, with releases below 1.0 (the npm badge shows the current version). It needs Node 22.19 or newer and Pi 1.5.2 or newer, and is tested with Pi 1.6.0. Newer Pi versions are allowed but not yet verified. Before 1.0, a minor release can include breaking changes, so read the [update notes](docs/installation.md#updates-and-rollback) before upgrading.
+
+## Install
 
 ```sh
 pi install npm:@howarewoo/pi-btw
 ```
 
-Alternatively, install from Git with `pi install git:github.com/howarewoo/pi-btw`.
-Use only one source: when switching between npm, Git or a local checkout, remove the
-previously registered source first so Pi does not load the extension twice.
+To install from Git instead, run `pi install git:github.com/howarewoo/pi-btw`. Register only one source, or Pi loads the extension twice. Extensions run with Pi's operating-system permissions, so review the source before installing.
 
-Restart Pi, or run `/reload` in an existing idle session after installing.
-
-### Moving from the older unscoped pi-btw extension
-
-This is a standalone replacement, not an upgrade of the unscoped npm package. Before
-installing, use `pi list` and `pi config` to identify the old package or extension.
-Disable/remove that old extension yourself, then install this package and reload. Do not
-leave both enabled: they register the same `/btw` command and Pi may suffix the names.
-There are no old aliases, mode commands, model overrides, or old-history migration.
-Old saved session data is not deleted or imported.
+Restart Pi, or run `/reload` in an idle session. Then run `/btw` with no prompt: the empty hub opens without a model request, which shows the extension is loaded. Press Esc to close it. See [installation and updates](docs/installation.md) for pinned versions, rollback and replacing the older unscoped `pi-btw` extension.
 
 ## Quick start
+
+`/btw` needs interactive Pi and a model: choose one with Pi's `/login` and `/model` commands. Side threads send requests to that provider, so they can cost money.
 
 In a project containing `README.md` and `package.json`:
 
@@ -63,206 +59,26 @@ In a project containing `README.md` and `package.json`:
 3. Use **Up / Down** to select either thread. After its request finishes, send a
    follow-up in that thread's composer.
 
-The hub now lists two independent threads. Requests can run concurrently; closing
-the hub does not cancel them. **Every `/btw <prompt>` creates a new thread**; use the
-selected thread's composer to continue an existing conversation. Bare `/btw` reopens
-the hub without making a model request.
+The hub now lists two independent threads, and the main conversation has neither of them in its context. Closing the hub does not cancel requests. Every `/btw <prompt>` creates a new thread; to continue a conversation, write in the selected thread's composer. Bare `/btw` reopens the hub.
 
-## Use the hub
-
-- **`/btw <prompt>`** always creates a fresh UUID-identified thread, even for an identical
-  prompt. It selects the thread, starts its request, and opens the hub.
-- **`/btw`** only opens the hub. It does not create a thread or make a model request.
-- Write a follow-up in the selected thread's composer. Different threads run concurrently.
-  Submitting to a busy thread is visibly rejected and keeps the draft; nothing is queued or steered.
-
-The centered overlay uses approximately 90% of the terminal. Wide terminals show the
-oldest-first roster (new threads append at the bottom) on the left and native Pi chat/tool components on the right.
-Status circles appear beside each title and in the selected header: accent ◉ starting/running,
-green ● idle, red ● failed, muted ○ cancelled, warning ○ interrupted. The separate
-› marker indicates selection. Panel backgrounds are neutral gray at the current
-theme’s lightness; native user/tool blocks keep their own styling.
-Narrow terminals show the selected thread with compact navigation. Very small terminals
-ask you to resize rather than accepting invisible composer input.
-
-![Synthetic native-renderer illustration of the narrow BTW hub showing a green idle circle, neutral gray panel, selected-conversation navigation, a read-only cache-policy question, native read tool output, reply and an unsent follow-up draft.](docs/images/btw-compact.svg)
-
-_Compact selected-conversation view with a status circle and neutral panel from the
-same production renderer and synthetic threads. Not a terminal screenshot or
-live-provider evidence; narrow layouts truncate some shortcut hints, while the full
-controls are listed below._
-
-| Control                                          | Action                                                           |
-| ------------------------------------------------ | ---------------------------------------------------------------- |
-| Esc                                              | Close the hub, **without stopping requests**                     |
-| Tab                                              | Switch between composer and roster focus                         |
-| Up / Down in either pane                         | Select the previous/older or next/newer thread (no wrap)         |
-| Enter in roster                                  | Focus the composer                                               |
-| Ctrl+Up / Ctrl+Down                              | Select the previous/older or next/newer thread from either panel |
-| Enter in composer                                | Send follow-up                                                   |
-| Shift+Enter or Ctrl+J                            | Insert a newline                                                 |
-| PageUp / PageDown                                | Scroll the selected transcript                                   |
-| Mouse wheel over transcript (Pi fullscreen mode) | Scroll the selected transcript                                   |
-| Ctrl+End                                         | Return to live output at the bottom                              |
-| Ctrl+S                                           | **Stop only the selected thread's current request**              |
-| Ctrl+Y                                           | Copy the latest assistant reply                                  |
-| Alt+Y                                            | Copy the user/assistant conversation with Markdown role labels   |
-
-Composer submit, newline, thread navigation, and cancel honor Pi's corresponding TUI
-keybindings. Plain Up/Down are always reserved for thread navigation, even in the
-multiline composer; use other editor controls (Left/Right, Home/End, etc.) to edit.
-Ctrl+Up/Down remain fixed navigation aliases. The other hub shortcuts above are fixed. Modified-key support depends on
-your terminal; see Pi's terminal setup documentation.
-
-Drafts and reading position are kept per thread when switching or closing/reopening the
-hub in the same runtime. Streaming follows the bottom until you scroll up; scrolling back
-to the bottom or pressing Ctrl+End resumes live output. The selected header and its
-separator stay fixed while the transcript scrolls. Native wheel scrolling is available
-only in Pi fullscreen mode and only over the transcript (not the roster, header, or
-composer). In regular mode the terminal owns mouse scrolling; use PageUp/PageDown
-and Ctrl+End to scroll the BTW transcript instead. Stop retains
-the SDK's partial assistant response. A failed, cancelled, or interrupted thread accepts
-new follow-ups; other threads are unaffected.
-
-Copy excludes inherited parent context, thinking, tool calls/results, terminal escapes,
-and UI framing. Partial text can be copied; the notice reports the observed thread state.
-Pi's exported clipboard helper is used, and errors are shown rather than reported as success.
-
-## Context and read-only boundary
-
-At creation, the extension captures the **current parent's branch model context once**
-(with compaction applied) and its effective system/project instructions. That snapshot
-is persisted with the thread, kept separate from visible/copyable side messages, and
-never refreshed from later parent conversation turns. Later follow-ups use only that
-snapshot and their own thread history. Child reads can still see subsequent local file changes.
-
-Each turn inherits the parent's current model and thinking level. The hub displays the
-selected/effective model; it never silently substitutes a different model when authentication
-fails. Provider or credential failures are visible on that thread. There are no override controls.
-
-Each child is a real SDK session with **only `read`, `grep`, `find`, and `ls` registered**.
-An explicit tool allowlist and a resource loader with no extensions, skills, templates,
-or arbitrary resource discovery enforce this structurally—not just through a prompt.
-Inherited historical tool calls do not grant tools. There is no bash, edit, write,
-subagent, MCP, codemode, or SSH support in children.
-
-This is a capability restriction, **not a filesystem sandbox**: the four tools can read
-local paths accessible to Pi, including paths outside the working directory. The extension
-itself and the model provider remain trusted code. Do not ask it to read secrets.
-
-## Persistence and recovery
-
-Thread snapshots and SDK transcripts are stored in versioned, hidden custom entries
-(`howarewoo.btw.v1`) in the **parent session file**. These entries do not enter the parent's
-model context and do not create visible save notes. They can contain the same sensitive
-conversation/project information as the parent; protect the session file accordingly.
-
-Creation and meaningful message/turn checkpoints are saved. Restoration reads only the
-current session branch. Unfinished restored turns become **interrupted**, and no paid
-request is automatically replayed. An abrupt crash can lose an unfinished streaming tail
-since the last checkpoint. Resume manually with a follow-up if you want another call.
-
-Clean reload, shutdown, session replacement, and tree navigation stop/dispose the affected
-children. Late async completions cannot append into a replacement branch/session. Returning
-to an older branch restores its last saved state rather than importing another branch's threads.
-Drafts and viewport positions are runtime-only and are not restored after restart/reload.
-`--no-session` parent sessions are ephemeral, including their BTW checkpoints.
-
-No automatic compaction or retry is enabled in child sessions. Very long side threads may
-hit provider context limits and fail visibly; start a fresh `/btw <prompt>` when needed.
-
-## Updates and rollback
-
-Let side requests finish before updating, then restart Pi or run `/reload`. Reload and
-shutdown stop active side requests; unfinished turns restore as interrupted and are not
-replayed. There is no extension-owned auto-updater.
-
-```sh
-# Update an unpinned npm installation
-pi update npm:@howarewoo/pi-btw
-
-# Or update all installed extension packages
-pi update --extensions
+```text
+/btw <prompt>   # start a new thread and open the hub
+/btw            # reopen the hub without a model request
 ```
 
-Plain `pi update` updates Pi itself, not installed extension packages. For a Git installation,
-use `pi update git:github.com/howarewoo/pi-btw`, matching the source you registered.
-An unpinned Git source tracks the repository's default branch, including unreleased commits.
-
-For a reproducible npm installation or rollback, select an exact published version:
-
-```sh
-pi install npm:@howarewoo/pi-btw@0.1.2
-```
-
-For Git, select a published tag, for example `pi install git:github.com/howarewoo/pi-btw@v0.1.2`.
-Exact npm versions and Git tags stay pinned; updating does not advance them to the next release.
-Install a different version explicitly to change the pin.
-
-[CHANGELOG.md](CHANGELOG.md) lists user-facing changes and migrations. Pi shows new package
-changelog entries on the next fresh launch after a version increase.
+In the hub, Ctrl+S stops only the selected thread's request, and Ctrl+Y copies its latest reply. The [hub guide](docs/hub.md#keys) lists every key.
 
 ## Documentation
 
-- [Release guide](https://github.com/howarewoo/pi-btw/blob/main/docs/releases.md): versioning,
-  compatibility policy, publishing and recovery.
-- [Changelog](CHANGELOG.md): user-facing changes and migrations.
-- [Security policy](https://github.com/howarewoo/pi-btw/blob/main/SECURITY.md): vulnerability
-  reporting and trust boundaries.
-
-## Local development
-
-From a source checkout:
-
-```sh
-git clone https://github.com/howarewoo/pi-btw.git
-cd pi-btw
-npm ci --ignore-scripts
-npm run lint
-npm run format:check
-npm run typecheck
-npm test
-npm pack --dry-run
-npm run test:package
-```
-
-`npm run check` runs lint, formatting, typechecking and tests; CI and prepublish use the same
-checks. Tests run with Node's native TypeScript support (`node --test`); no build step or
-TypeScript loader is required. Run `pi install .` to install the checkout, or `pi -e ./index.ts`
-for a one-invocation trial without changing package settings. The package loads only the root
-`index.ts` entry point; source modules, README and its images, changelog, and license are
-included in its install contents.
-
-`npm test` uses the real pinned Pi 1.6.0 SDK with a deterministic provider fixture. It checks
-tool declarations and execution/rejection, context isolation, concurrency, stop, restore/branch
-fencing, commands, copy filtering, Unicode/narrow/wide hub rendering, release metadata,
-changelog generation and publication safeguards. `npm run typecheck` checks source and fixtures.
-Oxlint checks correctness rules; warnings fail the lint command. Run `npm run lint:fix` for safe
-lint fixes and `npm run format` to apply Oxfmt formatting. Formatting skips the generated
-lockfile.
-
-`npm run release:check` validates release metadata; `npm run test:package` packs, inspects and
-installs the actual tarball in a disposable consumer (cache-first, isolated npm config), then
-checks pinned Pi loading and the noninteractive command boundary. These do not publish or verify npm account access.
-`npm pack --dry-run` only lists install contents. Maintainers: see the
-[release guide](https://github.com/howarewoo/pi-btw/blob/main/docs/releases.md).
-
-A small offline model fixture in `test/interactive-fixture.ts` is available for isolated
-manual TUI checks; it is not installed with the package. Automated SDK tests and an offline
-TUI smoke do not establish live-provider compatibility or every terminal/clipboard backend.
-Pi 1.5.2 is the minimum supported version and Pi 1.6.0 the tested host, not an exact-version
-requirement. Newer Pi versions are allowed; later versions have not yet been verified, and
-future breaking SDK changes may require an extension update.
-
-### Regenerate README illustrations
-
-From a checkout after `npm ci`, run `npm run render:readme` to regenerate
-`docs/images/btw-hub.svg` and `docs/images/btw-compact.svg`. The generator uses the
-production hub and native Pi transcript components with synthetic `Threads` and
-in-memory `SessionManager` data only. It loads no parent session and makes no provider
-requests. It uses the real theme and live neutral panel paint without illustration-only
-theme overrides. The ANSI-to-SVG converter is adapted from pi-extended-subagents (MIT).
-The generator and tests are not installed with the package; the README images are.
+| Topic                                                                        | What it covers                                                           |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| [Using the hub](docs/hub.md)                                                 | Commands, layouts, keys, scrolling, stopping and copying                 |
+| [Context and read-only boundary](docs/read-only-boundary.md)                 | The context snapshot, model inheritance and the four allowed tools       |
+| [Persistence and recovery](docs/persistence.md)                              | Where threads are saved, restore after reload, branches and long threads |
+| [Installation and updates](docs/installation.md)                             | Host support, install sources, updates, rollback and the old extension   |
+| [Local development](docs/development.md)                                     | Checks, tests, the package smoke test and README illustrations           |
+| [Releases](docs/releases.md) and [changelog](CHANGELOG.md)                   | Versioning, compatibility policy, publishing and user-facing changes     |
+| [Security policy](https://github.com/howarewoo/pi-btw/blob/main/SECURITY.md) | Vulnerability reporting and trust boundaries                             |
 
 ## License
 

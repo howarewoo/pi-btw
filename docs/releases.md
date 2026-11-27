@@ -123,7 +123,8 @@ commit is listed instead of its branch commits, and rebase merges may produce mu
 
    **Review and enrich the generated section** with migration, Pi compatibility and relevant
    persistence or read-only boundary changes. Commit metadata is only a starting point. Do not
-   promise verification that has not run. Keep README installation/migration examples current.
+   promise verification that has not run. Keep the README and the
+   [installation guide](installation.md) current.
 
    Missing or nonancestor tags, shallow/incomplete history, an empty range, unstable versions
    and duplicate version headings fail before writing. Fix the input or fetch full history;
